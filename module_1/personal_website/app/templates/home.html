@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <!-- title, cookies, metadata go here, not sure what else; not viewable in webpage -->
+        <title>
+            Stefan Thomas
+        </title>
+        <link rel="stylesheet" href="{{ url_for('static' , filename = 'main.css') }}">
+
+    </head>
+
+    <body>
+        <!-- This is the entire body of the webpage -->
+        
+        
+        <!-- Header -->
+        <h1> 
+            Stefan Thomas
+        </h1>
+
+        <img src="{{url_for('static', filename = 'stefanThomasProfilePicture.jpg')}}"align="middle" style="width:202px;height:303px;"/>
+
+        <strong>
+            <nav>
+                <ul class ="menu">
+                    <li>
+                        <a href="{{ url_for('about')}}">About</a>
+                    </li>
+
+                    <li>
+                        <a href="{{ url_for('contactInfo')}}">Contact</a>
+                    </li>
+                </ul>
+
+            </nav>
+        </strong>
+
+        <h2>
+            Biography
+        </h2>
+
+        <p>
+            Insert Biography information here
+        </p>
+
+        <h2>
+            Contact Information
+        </h2>
+
+        <h2>
+            Publications
+        </h2>
+          
+        
+    </body>
+
+
+
+</html>
