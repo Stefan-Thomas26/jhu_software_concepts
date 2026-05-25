@@ -1,2 +1,2 @@
-# jhu_software_concepts_summer26
+# JHU Modern Software Concepts with Python
 Repo for JHU Modern Software Concepts Course
