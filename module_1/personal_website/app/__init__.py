@@ -1,0 +1,1 @@
+#__init__.py initializes yourapplication creating a  flask instance
