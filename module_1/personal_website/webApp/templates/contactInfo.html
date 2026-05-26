@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>
+        Contact
+    </title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <!-- Creation of navigation bar at the top of the page -->
+    <nav class="navbar">
+        <!-- Keep logo empy to force placement of links to right side -->
+        <div class="logo"></div>
+        <strong>
+        <ul class ="nav-links">
+            <li> <a href="{{ url_for('pages.home')}}">Bio</a> </li>
+            <li> <a href="{{ url_for('pages.contactInfo')}}">Contact</a> </li>
+            <li> <a href="{{ url_for('pages.projects')}}">Projects</a> </li>
+        </ul>
+    </nav>
+
+<div class="container">
+
+    <div class="card">
+        <h1>Contact Me</h1>
+
+        <p class="subtitle">
+            Feel free to reach out!
+        </p>
+
+        <div class="contact-info">
+            <p>
+                <strong>Email:</strong> sthom257@jhu.edu
+            </p>
+        </div>
+
+        <div class="socials">
+            <a href="https://www.linkedin.com/in/stefan-thomas3/" target="_blank">
+                <img 
+                    src="https://cdn-icons-png.flaticon.com/512/174/174857.png"
+                    alt="LinkedIn"
+                    class="icon"
+                    style="width:300px;height:300px;"
+                />
+            </a>
+
+            <a href="https://github.com/Stefan-Thomas26" target="_blank">
+                <img 
+                    src="https://cdn-icons-png.flaticon.com/512/733/733553.png"
+                    alt="GitHub"
+                    class="icon"
+                    style="width:300px;height:300px;"
+                />
+            </a>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

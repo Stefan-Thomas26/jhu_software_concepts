@@ -1,60 +1,74 @@
 <!DOCTYPE html>
+
 <html>
 
-    <head>
-        <!-- title, cookies, metadata go here, not sure what else; not viewable in webpage -->
-        <title>
-            Stefan Thomas
-        </title>
-        <link rel="stylesheet" href="{{ url_for('static' , filename = 'main.css') }}">
+<head>
+    <!-- Title: name that appears in browser tab/bookmarks -->
+    <title>Stefan Thomas</title>
+    <meta charset="UTF-8">
+    <!-- Apply styling rules from a .css file -->
+    <link rel="stylesheet" href="{{ url_for('static' , filename = 'style.css') }}">
+</head>
 
-    </head>
-
-    <body>
-        <!-- This is the entire body of the webpage -->
-        
-        
-        <!-- Header -->
-        <h1> 
-            Stefan Thomas
-        </h1>
-
-        <img src="{{url_for('static', filename = 'stefanThomasProfilePicture.jpg')}}"align="middle" style="width:202px;height:303px;"/>
-
+<body>  
+    <!-- The order these items are placed in the body is the order it will appear on the webpage -->
+    <!-- Creation of navigation bar at the top of the page -->
+    <nav class="navbar">
+        <!-- Keep logo empy to force placement of links to right side -->
+        <div class="logo"></div>
         <strong>
-            <nav>
-                <ul class ="menu">
-                    <li>
-                        <a href="{{ url_for('pages.about')}}">About</a>
-                    </li>
+        <ul class ="nav-links">
+            <li> <a href="{{ url_for('pages.home')}}">Bio</a> </li>
+            <li> <a href="{{ url_for('pages.contactInfo')}}">Contact</a> </li>
+            <li> <a href="{{ url_for('pages.projects')}}">Projects</a> </li>
+        </ul>
+    </nav>
 
-                    <li>
-                        <a href="{{ url_for('pages.contactInfo')}}">Contact</a>
-                    </li>
-                </ul>
+    <!-- Header -->
+    <h1> 
+        Stefan Thomas
+    </h1>
 
-            </nav>
-        </strong>
+    <h2>
+        Current Position
+    </h2>
+    <subtitle>  
+        Signal Processing Engineer at Raytheon
+    </subtitle> 
 
-        <h2>
-            Biography
-        </h2>
+    <img 
+        src="{{url_for('static', filename = 'stefanThomasProfilePicture.jpg')}}"
+        align="right" 
+        style="width:260px;height:353px;"
+    />
 
-        <p>
-            Insert Biography information here
-        </p>
-
-        <h2>
-            Contact Information
-        </h2>
-
-        <h2>
-            Publications
-        </h2>
-          
+    <h2>
+        Biography
+    </h2>
+    <p>
+        Hello!
+        <br>
+        <br>
+        My name is Stefan Thomas.
+        <br>
+        <br>      
+        I'm a signal processing engineer at Raytheon that supports the development and 
+        refinement of various algorithms for different large-scale systems that 
+        utilize electro-optical sensors.
+        My work focuses on developing, testing, and analyzing algorithms that support 
+        sensor modeling, performance evaluation, and system-level validation. 
+        I'm always looking for opportunities to tackle challenging 
+        and exciting technical problems for both simulation environments 
+        and embedded systems.
+        <br>
+        <br>
+        I was born and raised in New York, but I moved to
+        Tucson, Arizona a little over 3 years ago for my current job, my first one out of college.
+        I graduated from the City College of New York with a B.E in Biomedical Engineering.
+    </p>
+    
         
-    </body>
-
-
+    
+</body>
 
 </html>
