@@ -18,10 +18,12 @@
         <div class="logo"></div>
         <strong>
         <ul class ="nav-links">
-            <li> <a href="{{ url_for('pages.home')}}">Bio</a> </li>
+            <!-- link that is active will be highlighted -->
+            <li> <a href="{{ url_for('pages.home')}}" class = "active" >Bio</a> </li>
             <li> <a href="{{ url_for('pages.contactInfo')}}">Contact</a> </li>
             <li> <a href="{{ url_for('pages.projects')}}">Projects</a> </li>
         </ul>
+        </strong>
     </nav>
 
     <!-- Header -->
@@ -45,6 +47,7 @@
     <h2>
         Biography
     </h2>
+
     <p>
         Hello!
         <br>
@@ -66,9 +69,6 @@
         Tucson, Arizona a little over 3 years ago for my current job, my first one out of college.
         I graduated from the City College of New York with a B.E in Biomedical Engineering.
     </p>
-    
-        
-    
-</body>
 
+</body>
 </html>

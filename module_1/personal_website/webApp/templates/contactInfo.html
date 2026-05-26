@@ -17,24 +17,21 @@
         <div class="logo"></div>
         <strong>
         <ul class ="nav-links">
+            <!-- link that is active will be highlighted -->
             <li> <a href="{{ url_for('pages.home')}}">Bio</a> </li>
-            <li> <a href="{{ url_for('pages.contactInfo')}}">Contact</a> </li>
+            <li> <a href="{{ url_for('pages.contactInfo')}}" class = "active">Contact</a> </li>
             <li> <a href="{{ url_for('pages.projects')}}">Projects</a> </li>
         </ul>
+        </strong>
     </nav>
 
 <div class="container">
-
     <div class="card">
         <h1>Contact Me</h1>
 
-        <p class="subtitle">
-            Feel free to reach out!
-        </p>
-
         <div class="contact-info">
             <p>
-                <strong>Email:</strong> sthom257@jhu.edu
+                <strong>Email:</strong> sthom257@jh.edu
             </p>
         </div>
 
@@ -44,7 +41,7 @@
                     src="https://cdn-icons-png.flaticon.com/512/174/174857.png"
                     alt="LinkedIn"
                     class="icon"
-                    style="width:300px;height:300px;"
+                    style="width:220px;height:220px;"
                 />
             </a>
 
@@ -53,15 +50,12 @@
                     src="https://cdn-icons-png.flaticon.com/512/733/733553.png"
                     alt="GitHub"
                     class="icon"
-                    style="width:300px;height:300px;"
+                    style="width:220px;height:220px;"
                 />
             </a>
         </div>
-
     </div>
-
 </div>
 
 </body>
-
 </html>

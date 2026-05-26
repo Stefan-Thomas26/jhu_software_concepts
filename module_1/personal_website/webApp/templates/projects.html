@@ -17,10 +17,12 @@
         <div class="logo"></div>
         <strong>
         <ul class ="nav-links">
+            <!-- link that is active will be highlighted -->
             <li> <a href="{{ url_for('pages.home')}}">Bio</a> </li>
             <li> <a href="{{ url_for('pages.contactInfo')}}">Contact</a> </li>
-            <li> <a href="{{ url_for('pages.projects')}}">Projects</a> </li>
+            <li> <a href="{{ url_for('pages.projects')}}" class = "active" >Projects</a> </li>
         </ul>
+        </strong>
     </nav>
 
 <div class="container">
@@ -28,26 +30,17 @@
     <div class="card">
         <h1>Projects</h1>
 
+        <h2> Module 1 - Personal Website </h2>
         <p class="subtitle">
-            Feel free to reach out!
+        This project was to make a personal website.
         </p>
-
-      
-
-        <div class="socials">
-            <a href="https://www.linkedin.com/in/stefan-thomas3/" target="_blank">
-                
-            </a>
-
-            <a href="https://github.com/Stefan-Thomas26" target="_blank">
-                
-            </a>
-        </div>
-
+        <a 
+            href="https://github.com/Stefan-Thomas26/jhu_software_concepts/tree/master/module_1">
+            <strong>Module 1 Github Link</strong>   
+        </a>
     </div>
 
 </div>
 
 </body>
-
 </html>

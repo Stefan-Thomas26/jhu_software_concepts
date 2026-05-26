@@ -10,7 +10,7 @@
 /* ===== Body Styling ===== */
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #f4f7fb, #dfe9f3);
+  background: linear-gradient(135deg, #f4f7fb, #abcff4);
   color: #222;
   line-height: 1.6;
   padding: 40px;
@@ -83,6 +83,16 @@ button
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background-color: rgb(242, 157, 96);
+  padding: 15px 20px;
+  display: flex;
+  gap: 20px;
+}
+
+/* highlight active tab */
+nav a.active
+{
+  background-color: #ffffff;
 }
 
 .nav-links
@@ -92,8 +102,10 @@ button
   list-style: none;
 }
 
-/* Images */
+/* ===== Images ===== */
 img
 {
   margin: 30px; /* Adds 20px space on all sides */
 }
+
+
