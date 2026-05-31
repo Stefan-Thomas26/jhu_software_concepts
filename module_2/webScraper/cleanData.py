@@ -1,0 +1,142 @@
+from bs4 import BeautifulSoup
+from webScraper import GradApplicant
+import re
+from urllib import parse
+
+
+# ===================================
+# Check if the input table row is the
+# start of a new student entry
+# ===================================
+def isNewStudent(row):
+    # define a function to assess if row is a the beginning of a student entry
+    # From observing the html, the lines with the university name have the following
+    # divider pattern : "div.tw-font-medium.tw-text-gray-900.tw-text-sm"
+    isNewStudentEntry = bool(row.select_one("div.tw-font-medium.tw-text-gray-900.tw-text-sm"))
+    return(isNewStudentEntry)
+
+
+# ===================================
+# Parse table row that contains pertinent
+# grad applicant data
+# ===================================
+def parse_main_row(row, base_url, applicant, count):
+    applicant.applicantNumber = count
+    applicant.university = row.select_one("div.tw-font-medium.tw-text-gray-900.tw-text-sm").get_text(strip=True)
+
+    # in the 2nd <td> element in the html, find all <span> elements
+    spans = row.select("td:nth-of-type(2) span")
+    applicant.program = spans[0].get_text(strip=True)
+    applicant.degreeType = spans[1].get_text(strip=True)
+    applicant.date_posted = row.select_one("td:nth-of-type(3)").get_text(strip=True)
+    applicant.decision = row.select_one("td:nth-of-type(4)").get_text(strip=True)
+    
+    link_tag = row.find("a")
+    applicant.url = parse.urljoin(base_url, link_tag["href"]) if link_tag else None
+    
+    return (applicant)   
+
+
+# ===================================
+# Parse table row that contains other
+# grad applicant data
+# ===================================
+def parse_details_row(row, applicant):
+    # initialzie data
+    applicant.semester = None
+    applicant.citizenship   = None 
+    applicant.gre_q  = None
+    applicant.gre_v  = None
+    applicant.gre_aw = None
+    applicant.gpa = None
+
+    badges = row.select("div.tw-inline-flex")
+    
+    for b in badges:
+        text = b.get_text(" ", strip=True)
+
+        # Semester
+        if re.match(r"(Fall|Spring|Summer|Winter)\s+\d{4}", text):
+            applicant.semester = text
+
+        # Citizenship
+        elif text in ["International", "American", "Other"]:
+            applicant.citizenship = text 
+        # GRE Quant
+        elif text.startswith("GRE V"):
+            applicant.gre_v = float(text.replace("GRE V", "").strip())
+
+        elif text.startswith("GRE AW"):
+           applicant.gre_aw = float(text.replace("GRE AW", "").strip())
+
+        elif text.startswith("GRE"):
+            # plain GRE score
+            try:
+                applicant.gre_q = int(re.search(r"\d{3}", text).group())
+            except:
+                pass
+
+        elif text.startswith("GPA"):
+            applicant.gpa = float(text.replace("GPA", "").strip())
+
+    return (applicant)
+
+
+# =============================
+# Parse table row that contains
+# grad applicant comments 
+# =============================
+def parse_comment_row(row, applicant):
+    containsComment = bool(row.find("p"))
+    if containsComment:
+        applicant.comment = row.get_text("p", strip=True) 
+    else:
+        applicant.comment = None
+
+    return applicant
+
+
+# =============================
+# Clean the input html and extract
+# and organize pertinent data
+# for each grad school applicant
+# =============================
+def clean_data(html_data, base_url, count):
+    
+    # Create a BeautifulSoup instance
+    soup = BeautifulSoup(html_data, "html.parser")
+    
+    # Get table rows from the html
+    #tr is table row, which is each entry in thew webpage
+    tableRows = soup.find_all("tr") 
+    
+    # Initialize lists to store grad applicant data
+    applicantsFromCurrentPage = []
+
+    # Looping through all table row elements from html
+    for index, row in enumerate(tableRows): # this gives an (index, row) pair
+        if isNewStudent(row):
+            print("======= NEW STUDENT =========")
+            count = count+1
+            applicant = GradApplicant.GradApplicant()
+            parse_main_row(row, base_url, applicant, count)
+
+            # parse the next row, which contains more details
+            if (index+1 < len(tableRows)):
+                detailsRow = tableRows[index+1]
+                parse_details_row(detailsRow, applicant)
+            
+            # parse the next next row, which SOMETIMES contains a comment.
+            # only do this if the next row contains a <p> element
+            if (index+2 < len(tableRows)):
+                commentRow = tableRows[index+2]
+                parse_comment_row(commentRow, applicant)
+
+            for name, value in vars(applicant).items():
+                print(f"{name}:   {value}")
+
+            applicantsFromCurrentPage.append(applicant)
+        else:
+            continue
+
+    return applicantsFromCurrentPage, count
