@@ -11,3 +11,8 @@ def save_data(allGradApplicants):
 
     with open("gradStudentData.json", "w", encoding="utf-8") as f:
         json.dump(allData, f, indent=4)
+    
+    print("")
+    print("::::::::::::::::::::::")
+    print("!!! ALL DATA SAVED !!!")
+    print("::::::::::::::::::::::")
