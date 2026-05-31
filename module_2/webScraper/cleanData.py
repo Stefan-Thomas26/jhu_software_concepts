@@ -8,7 +8,7 @@ from urllib import parse
 # Check if the input table row is the
 # start of a new student entry
 # ===================================
-def isNewStudent(row):
+def _is_new_student(row):
     # define a function to assess if row is a the beginning of a student entry
     # From observing the html, the lines with the university name have the following
     # divider pattern : "div.tw-font-medium.tw-text-gray-900.tw-text-sm"
@@ -20,7 +20,7 @@ def isNewStudent(row):
 # Parse table row that contains pertinent
 # grad applicant data
 # ===================================
-def parse_main_row(row, base_url, applicant):
+def _parse_main_row(row, base_url, applicant):
     applicant.university = row.select_one("div.tw-font-medium.tw-text-gray-900.tw-text-sm").get_text(strip=True)
 
     # in the 2nd <td> element in the html, find all <span> elements
@@ -40,11 +40,11 @@ def parse_main_row(row, base_url, applicant):
 # Parse table row that contains other
 # grad applicant data
 # ===================================
-def parse_details_row(row, applicant):
+def _parse_details_row(row, applicant):
     # initialzie data
     applicant.semester = None
     applicant.citizenship   = None 
-    applicant.gre_q  = None
+    applicant.gre  = None
     applicant.gre_v  = None
     applicant.gre_aw = None
     applicant.gpa = None
@@ -61,17 +61,17 @@ def parse_details_row(row, applicant):
         # Citizenship
         elif text in ["International", "American", "Other"]:
             applicant.citizenship = text 
-        # GRE Quant
+        # GRE Verbal
         elif text.startswith("GRE V"):
             applicant.gre_v = float(text.replace("GRE V", "").strip())
-
+        # GRE Analytical Writing
         elif text.startswith("GRE AW"):
            applicant.gre_aw = float(text.replace("GRE AW", "").strip())
 
         elif text.startswith("GRE"):
             # plain GRE score
             try:
-                applicant.gre_q = int(re.search(r"\d{3}", text).group())
+                applicant.gre = int(re.search(r"\d{3}", text).group())
             except:
                 pass
 
@@ -85,7 +85,7 @@ def parse_details_row(row, applicant):
 # Parse table row that contains
 # grad applicant comments 
 # =============================
-def parse_comment_row(row, applicant):
+def _parse_comment_row(row, applicant):
     containsComment = bool(row.find("p"))
     if containsComment:
         applicant.comment = row.get_text("p", strip=True) 
@@ -114,21 +114,21 @@ def clean_data(html_data, base_url):
 
     # Looping through all table row elements from html
     for index, row in enumerate(tableRows): # this gives an (index, row) pair
-        if isNewStudent(row):
+        if _is_new_student(row):
             # print("======= NEW STUDENT =========")
             applicant = GradApplicant.GradApplicant()
-            parse_main_row(row, base_url, applicant)
+            _parse_main_row(row, base_url, applicant)
 
             # parse the next row, which contains more details
             if (index+1 < len(tableRows)):
                 detailsRow = tableRows[index+1]
-                parse_details_row(detailsRow, applicant)
+                _parse_details_row(detailsRow, applicant)
             
             # parse the next next row, which SOMETIMES contains a comment.
             # only do this if the next row contains a <p> element
             if (index+2 < len(tableRows)):
                 commentRow = tableRows[index+2]
-                parse_comment_row(commentRow, applicant)
+                _parse_comment_row(commentRow, applicant)
 
             # for name, value in vars(applicant).items():
                 # print(f"{name}:   {value}")

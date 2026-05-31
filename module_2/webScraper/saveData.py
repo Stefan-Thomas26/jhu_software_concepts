@@ -5,11 +5,11 @@ import json
 # Save Grad School applicant 
 # data as a .json file 
 # =============================
-def save_data(allGradApplicants):
+def save_data(allGradApplicants, filename):
 
     allData = [asdict(student) for student in allGradApplicants]
 
-    with open("gradStudentData.json", "w", encoding="utf-8") as f:
+    with open(filename, "w", encoding="utf-8") as f:
         json.dump(allData, f, indent=4)
     
     print("")

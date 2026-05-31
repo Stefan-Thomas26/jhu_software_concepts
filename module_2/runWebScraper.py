@@ -1,13 +1,14 @@
 from concurrent.futures import ThreadPoolExecutor
-from webScraper import scrape, confirmRobot, cleanData, saveData
+from webScraper import confirmRobot, scrapeData, cleanData, saveData, loadData
 import time
+from pathlib import Path
 
 # ================
 # Define Constants 
 # ================
 start = time.time()
 BASE_URL = "https://www.thegradcafe.com"
-totalPages = 100
+totalPages = 3000
 numWorkers = 10
 
 # ======================
@@ -21,7 +22,7 @@ numWorkers = 10
 # ===============
 def process_page(page_num):
     try:
-        html_data = scrape.scrape(BASE_URL, page_num)
+        html_data = scrapeData.scrape_data(BASE_URL, page_num)
         applicants = cleanData.clean_data(html_data, BASE_URL)
         print(f"Finished reading page {page_num}")
         return applicants
@@ -42,7 +43,14 @@ with ThreadPoolExecutor(max_workers = numWorkers) as executor:
 for ii, applicant in enumerate(allGradApplicants, start=1):
     applicant.applicantNumber = ii 
 
-saveData.save_data(allGradApplicants)
+outputFilename = "applicant_data.json"
+saveData.save_data(allGradApplicants, outputFilename)
+
+# Find absolute path to .json file on local machine
+outputFilePath = Path(outputFilename)
+
+# Load Data using default .json file viewer on machine
+loadData.load_data(outputFilePath.resolve())
 
 print(f"!!! Elapsed time = {(time.time() - start)/60} minutes !!!")
 print("::::::::::::::::::::::")

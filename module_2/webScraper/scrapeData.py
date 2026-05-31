@@ -5,7 +5,7 @@ import time
 # Make global pool manager
 HTTP = urllib3.PoolManager()
 
-def scrape(base_url, pageNum):
+def scrape_data(base_url, pageNum):
     # Create URL using the page number
     pageString = (f"survey?page={pageNum}")
     webpageUrl = parse.urljoin(base_url, pageString)
