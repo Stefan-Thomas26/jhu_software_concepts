@@ -6,8 +6,8 @@ class GradApplicant:
     university: str = None
     program: str = None
     degreeType: str = None
-    date_posted: str = None
-    decision: str = None
+    datePosted: str = None
+    status: str = None
     semester: str = None
     citizenship: str = None
     gpa: float = None

@@ -8,13 +8,13 @@ from pathlib import Path
 # ================
 start = time.time()
 BASE_URL = "https://www.thegradcafe.com"
-totalPages = 3000
+totalPages = 30
 numWorkers = 10
 
 # ======================
 # Verify robots.txt file 
 # ======================
-# confirmRobot.confirmRobot(BASE_URL)
+confirmRobot.confirmRobot(BASE_URL)
 
 
 # ===============
@@ -30,6 +30,7 @@ def process_page(page_num):
     except Exception as e:
         print(f"Failed page {page_num}: {e}")
         return []
+    # process_page FUNCTION END
 
 allGradApplicants = []
 

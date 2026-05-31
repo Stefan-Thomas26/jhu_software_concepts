@@ -16,3 +16,4 @@ def save_data(allGradApplicants, filename):
     print("::::::::::::::::::::::")
     print("!!! ALL DATA SAVED !!!")
     print("::::::::::::::::::::::")
+    # save_data FUNCTION END

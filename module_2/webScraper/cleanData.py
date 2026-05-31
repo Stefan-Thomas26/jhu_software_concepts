@@ -14,6 +14,7 @@ def _is_new_student(row):
     # divider pattern : "div.tw-font-medium.tw-text-gray-900.tw-text-sm"
     isNewStudentEntry = bool(row.select_one("div.tw-font-medium.tw-text-gray-900.tw-text-sm"))
     return(isNewStudentEntry)
+    # _is_new_student FUNCTION END
 
 
 # ===================================
@@ -27,13 +28,14 @@ def _parse_main_row(row, base_url, applicant):
     spans = row.select("td:nth-of-type(2) span")
     applicant.program = spans[0].get_text(strip=True)
     applicant.degreeType = spans[1].get_text(strip=True)
-    applicant.date_posted = row.select_one("td:nth-of-type(3)").get_text(strip=True)
-    applicant.decision = row.select_one("td:nth-of-type(4)").get_text(strip=True)
+    applicant.datePosted = row.select_one("td:nth-of-type(3)").get_text(strip=True)
+    applicant.status = row.select_one("td:nth-of-type(4)").get_text(strip=True)
     
     link_tag = row.find("a")
     applicant.url = parse.urljoin(base_url, link_tag["href"]) if link_tag else None
     
-    return (applicant)   
+    return (applicant) 
+    # _parse_main_row FUNCTION END
 
 
 # ===================================
@@ -79,6 +81,7 @@ def _parse_details_row(row, applicant):
             applicant.gpa = float(text.replace("GPA", "").strip())
 
     return (applicant)
+    # _parse_details_row FUNCTION END
 
 
 # =============================
@@ -93,6 +96,7 @@ def _parse_comment_row(row, applicant):
         applicant.comment = None
 
     return applicant
+    # _parse_comment_row FUNCTION END
 
 
 # =============================
@@ -138,3 +142,4 @@ def clean_data(html_data, base_url):
             continue
 
     return applicantsFromCurrentPage
+    # clean_data FUNCTION END

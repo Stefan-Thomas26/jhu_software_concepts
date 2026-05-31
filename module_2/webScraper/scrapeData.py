@@ -35,4 +35,4 @@ def scrape_data(base_url, pageNum):
     # td class="tw-py-5 tw-px-3 tw-text-sm --> indicates start of new application
     # tw-border-non --> meta data for each applicant
 
-    # scrape FUNCTION END
+    # scrape_data FUNCTION END
