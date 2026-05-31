@@ -20,8 +20,7 @@ def isNewStudent(row):
 # Parse table row that contains pertinent
 # grad applicant data
 # ===================================
-def parse_main_row(row, base_url, applicant, count):
-    applicant.applicantNumber = count
+def parse_main_row(row, base_url, applicant):
     applicant.university = row.select_one("div.tw-font-medium.tw-text-gray-900.tw-text-sm").get_text(strip=True)
 
     # in the 2nd <td> element in the html, find all <span> elements
@@ -101,7 +100,7 @@ def parse_comment_row(row, applicant):
 # and organize pertinent data
 # for each grad school applicant
 # =============================
-def clean_data(html_data, base_url, count):
+def clean_data(html_data, base_url):
     
     # Create a BeautifulSoup instance
     soup = BeautifulSoup(html_data, "html.parser")
@@ -116,10 +115,9 @@ def clean_data(html_data, base_url, count):
     # Looping through all table row elements from html
     for index, row in enumerate(tableRows): # this gives an (index, row) pair
         if isNewStudent(row):
-            print("======= NEW STUDENT =========")
-            count = count+1
+            # print("======= NEW STUDENT =========")
             applicant = GradApplicant.GradApplicant()
-            parse_main_row(row, base_url, applicant, count)
+            parse_main_row(row, base_url, applicant)
 
             # parse the next row, which contains more details
             if (index+1 < len(tableRows)):
@@ -132,11 +130,11 @@ def clean_data(html_data, base_url, count):
                 commentRow = tableRows[index+2]
                 parse_comment_row(commentRow, applicant)
 
-            for name, value in vars(applicant).items():
-                print(f"{name}:   {value}")
+            # for name, value in vars(applicant).items():
+                # print(f"{name}:   {value}")
 
             applicantsFromCurrentPage.append(applicant)
         else:
             continue
 
-    return applicantsFromCurrentPage, count
+    return applicantsFromCurrentPage

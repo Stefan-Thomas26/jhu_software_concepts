@@ -9,5 +9,5 @@ def save_data(allGradApplicants):
 
     allData = [asdict(student) for student in allGradApplicants]
 
-    with open("gradcafe.json", "w", encoding="utf-8") as f:
+    with open("gradStudentData.json", "w", encoding="utf-8") as f:
         json.dump(allData, f, indent=4)
