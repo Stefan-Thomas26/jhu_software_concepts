@@ -1,16 +1,17 @@
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 import json
 
 # =============================
 # Save Grad School applicant 
 # data as a .json file 
 # =============================
-def save_data(allGradApplicants, filename):
+def save_data(allGradApplicants, filePath):
 
-    allData = [asdict(student) for student in allGradApplicants]
+    if allGradApplicants and is_dataclass(allGradApplicants[0]):
+        allGradApplicants = [asdict(student) for student in allGradApplicants]
 
-    with open(filename, "w", encoding="utf-8") as f:
-        json.dump(allData, f, indent=4)
+    with open(filePath, "w", encoding="utf-8") as f:
+        json.dump(allGradApplicants, f, indent=4)
     
     print("")
     print("::::::::::::::::::::::")

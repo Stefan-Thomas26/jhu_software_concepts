@@ -1,12 +1,31 @@
-# Module 2 README
+# Module 2 - Web Scraping
 
-## Instructions
-PLACE HOLDER
-
+***Due Date***: May 31, 2026
 
 
+## Personal Information
+***Author:*** Stefan Thomas
+
+***Hopkins ID:*** 6B9051
 
 
+## Approach
+
+
+
+
+
+
+## Known Bugs 
+
+
+
+
+
+
+
+
+# TO BE DELETED BELOW
 Data we want to collect from GradCafe
 - School
 - Program ()

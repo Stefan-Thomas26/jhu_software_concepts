@@ -1,15 +1,13 @@
 from urllib import parse, robotparser
-def confirmRobot(BASE_URL):
-    # The number of pages on thegradcafe.com we want to scrape
-    numPages = 10
-
+def confirm_robot(BASE_URL):
+    
     # ===========================
     # Verify robot.txt compliance
     # ===========================
 
     # STEFAN. THIS HAS BUGS. I'M NOT SURE WHY THIS IS SAYING 
 
-    agent = "*" #all
+    agent = "*" #all agents
     robotParser = robotparser.RobotFileParser()
     robotParser.set_url(parse.urljoin(BASE_URL,'robots.txt'))
     robotParser.read();

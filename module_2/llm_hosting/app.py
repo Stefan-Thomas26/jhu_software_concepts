@@ -72,42 +72,57 @@ SYSTEM_PROMPT = (
     "You are a data cleaning assistant. Standardize degree program and university "
     "names.\n\n"
     "Rules:\n"
-    "- Input provides a single string under key `program` that may contain both "
-    "program and university.\n"
-    "- Split into (program name, university name).\n"
+    "- Input provides both the university and the program under the keys `university` and `program`, respectively\n"
+    "- Split into (university name, program name, ).\n"
     "- Trim extra spaces and commas.\n"
     '- Expand obvious abbreviations (e.g., "McG" -> "McGill University", '
     '"UBC" -> "University of British Columbia").\n'
     "- Use Title Case for program; use official capitalization for university "
     "names (e.g., \"University of X\").\n"
     '- Ensure correct spelling (e.g., "McGill", not "McGiill").\n'
-    '- If university cannot be inferred, return "Unknown".\n\n'
+    '- If the univerisity cannot be determined, look explicitly\n'
+    'at the "university" member. Using that member, determine correct\n'
+    'spelling, if needed.\n'
+    '    - If the university name is not explicitly stated,\n'
+    'return "Unknown".\n'
+    '    - If multiple universities are possible, return "Unknown".\n\n'
     "Return JSON ONLY with keys:\n"
     "  standardized_program, standardized_university\n"
 )
 
 FEW_SHOTS: List[Tuple[Dict[str, str], Dict[str, str]]] = [
     (
-        {"program": "Information Studies, McGill University"},
+        {"university": "McGill University", "program": "Information Studies"},
         {
-            "standardized_program": "Information Studies",
             "standardized_university": "McGill University",
+            "standardized_program": "Information Studies",
         },
     ),
+    
     (
-        {"program": "Information, McG"},
+        {"university": "McG", "program": "Information"},
         {
-            "standardized_program": "Information Studies",
             "standardized_university": "McGill University",
+            "standardized_program": "Information Studies",
         },
     ),
+    
     (
-        {"program": "Mathematics, University Of British Columbia"},
+        {"university": "University Of British Columbia", "program": "Mathematics"},
         {
-            "standardized_program": "Mathematics",
             "standardized_university": "University of British Columbia",
+            "standardized_program": "Mathematics",
         },
     ),
+    
+    (
+        {"university": "Harvard", "program": "Computer Science"},
+        {
+            "standardized_university": "Harvard University",
+            "standardized_program": "Computer Science",
+        },
+    ),
+    
 ]
 
 _LLM: Llama | None = None
@@ -205,7 +220,8 @@ def _post_normalize_university(uni: str) -> str:
     return match or u or "Unknown"
 
 
-def _call_llm(program_text: str) -> Dict[str, str]:
+
+def _call_llm(university_text: str, program_text: str) -> Dict[str, str]:
     """Query the tiny LLM and return standardized fields."""
     llm = _load_llm()
 
@@ -223,7 +239,7 @@ def _call_llm(program_text: str) -> Dict[str, str]:
     messages.append(
         {
             "role": "user",
-            "content": json.dumps({"program": program_text}, ensure_ascii=False),
+            "content": json.dumps({"university": university_text, "program": program_text}, ensure_ascii=False),
         }
     )
 
@@ -266,6 +282,8 @@ def health() -> Any:
     return jsonify({"ok": True})
 
 
+
+
 @app.post("/standardize")
 def standardize() -> Any:
     """Standardize rows from an HTTP request and return JSON."""
@@ -274,14 +292,25 @@ def standardize() -> Any:
 
     out: List[Dict[str, Any]] = []
     for row in rows:
+        university_text = (row or {}).get("university") or ""
         program_text = (row or {}).get("program") or ""
-        result = _call_llm(program_text)
+        result = _call_llm(university_text, program_text)
         row["llm-generated-program"] = result["standardized_program"]
         row["llm-generated-university"] = result["standardized_university"]
         out.append(row)
 
     return jsonify({"rows": out})
 
+# New function for parallelization
+def enrich_row(row):
+    university_text = (row or {}).get("university") or ""
+    program_text = row.get("program", "")
+    result = _call_llm(university_text, program_text)
+
+    row["llm-generated-program"] = result["standardized_program"]
+    row["llm-generated-university"] = result["standardized_university"]
+
+    return row
 
 def _cli_process_file(
     in_path: str,
@@ -303,8 +332,9 @@ def _cli_process_file(
 
     try:
         for row in rows:
+            university_text = (row or {}).get("university") or ""
             program_text = (row or {}).get("program") or ""
-            result = _call_llm(program_text)
+            result = _call_llm(university_text, program_text)
             row["llm-generated-program"] = result["standardized_program"]
             row["llm-generated-university"] = result["standardized_university"]
 

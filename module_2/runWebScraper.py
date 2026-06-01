@@ -2,19 +2,20 @@ from concurrent.futures import ThreadPoolExecutor
 from webScraper import confirmRobot, scrapeData, cleanData, saveData, loadData
 import time
 from pathlib import Path
+from llm_hosting.app import enrich_row
+
 
 # ================
 # Define Constants 
 # ================
 start = time.time()
 BASE_URL = "https://www.thegradcafe.com"
-totalPages = 30
-numWorkers = 10
+totalPages = 3000
 
 # ======================
 # Verify robots.txt file 
 # ======================
-confirmRobot.confirmRobot(BASE_URL)
+confirmRobot.confirm_robot(BASE_URL)
 
 
 # ===============
@@ -32,9 +33,15 @@ def process_page(page_num):
         return []
     # process_page FUNCTION END
 
-allGradApplicants = []
 
-with ThreadPoolExecutor(max_workers = numWorkers) as executor:
+# ===============================================
+# PART I - Create a .json with all applicant data
+# ===============================================
+
+allGradApplicants = []
+numScrapeWorkers = 10
+# run thread pool
+with ThreadPoolExecutor(max_workers = numScrapeWorkers) as executor:
     results = executor.map(process_page, range(1, totalPages+1))
     
     for page_applicants in results:
@@ -44,17 +51,42 @@ with ThreadPoolExecutor(max_workers = numWorkers) as executor:
 for ii, applicant in enumerate(allGradApplicants, start=1):
     applicant.applicantNumber = ii 
 
-outputFilename = "applicant_data.json"
-saveData.save_data(allGradApplicants, outputFilename)
+# Create filename to store applicant data PRE LLM
+applicantDataFilename = "applicant_data.json"
 
-# Find absolute path to .json file on local machine
-outputFilePath = Path(outputFilename)
-
-# Load Data using default .json file viewer on machine
-loadData.load_data(outputFilePath.resolve())
-
+saveData.save_data(allGradApplicants, applicantDataFilename)
 print(f"!!! Elapsed time = {(time.time() - start)/60} minutes !!!")
 print("::::::::::::::::::::::")
+
+# Find absolute path to .json file on local machine
+applicantDataFilePath = Path(applicantDataFilename)
+
+# open file
+loadData.view_file(applicantDataFilePath)
+
+
+
+# ========================================
+# PART II - run applicant data through LLM
+# ========================================
+numLlmWorkers = 1 # Never figured out how to parallelize this
+
+# Load Data using default .json file viewer on machine
+applicantDataRows = loadData.load_data(applicantDataFilePath.resolve())
+
+# run thread pool
+with ThreadPoolExecutor(max_workers = numLlmWorkers) as executor:
+    enriched_rows = list(executor.map(enrich_row, applicantDataRows))
+
+outputLLMfilename = "llm_extended_applicant_data.json"
+saveData.save_data(enriched_rows, outputLLMfilename)
+
+# Find absolute path to .json file on local machine
+applicantDataFilePath_LLM = Path(outputLLMfilename)
+
+# Open File
+loadData.view_file(applicantDataFilePath_LLM)
+
 
 # ==============================
 # Loop through multiple webpages
