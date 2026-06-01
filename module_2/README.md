@@ -11,16 +11,26 @@
 
 ## Approach
 
+I completed this assignment in two phases:
+1) Scrape, clean, and output the data stored on [thegradcafe.com](https://www.thegradcafe.com/survey) as a JSON file
 
+2) Using the output JSON file from Step 1, pass it into the simple LLM provided to further enrich the JSON list for each applicant entry
 
+### File Organization
+Here is the file organization of the `module_2` folder:
 
+create a runWebScraper module to store the following 
+    - confirmRobot.py
+    - scrapeData.py
+    - cleanData.py
+    - saveData.py
+    - loadData.py
+    - GradApplicant.py
 
 
 ## Known Bugs 
 
-
-
-
+    `
 
 
 
