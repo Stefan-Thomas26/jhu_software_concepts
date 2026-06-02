@@ -62,18 +62,18 @@ Refer to the `requirements.txt` to ensure you have the necessary packages and ve
 - This JSON file contains 60000 grad applicants and their pertient data points. This is the output from scraping and cleaning the data.
 
 **applicant_data_SMALL.json**
-- This JSON file contains only 60 grad applicants. This file was generated from scrapinga and cleaning to then be passed into the LLM, which is NOT parallelized (see [Known Bugs](#Approach))
+- This JSON file contains only 60 grad applicants. This file was generated from scraping and cleaning webpages, to then be passed into the LLM, which is NOT parallelized (see [Known Bugs](#Approach))
 
 **llm_extended_applicant_data.json**
-- This JSON file is the output from the LLM. Although this file only contains 60 applicants, it was provided as evidence that the LLM was working. It is, however, not parallelized, and I ran out of time to ru the 60000 applicant JSON file through it.
+- This JSON file is the output from the LLM. Although this file only contains 60 applicants, it was provided as evidence that the LLM was working. It is, however, not parallelized, and I ran out of time to run the 60000 applicant JSON file through it.
 - See [Known Bugs](#Known-Bugs) for more information.
 
 ## Known Bugs
 
-- Currently, there is an issue when running the `confirmRobot.confirm_robot()`. I was not able to diagnose why the robotParser 'can_fetch' the "Disallow" paths. This needs to be fixed to ensure compliance with `thegradcafe.com/robots.txt`. See the image below:
+- Currently, there is an issue when running the `confirmRobot.confirm_robot()` function. I was not able to diagnose why the robotParser 'can_fetch' the "Disallow" paths. This needs to be fixed to ensure compliance with `thegradcafe.com/robots.txt`. See the image below:
 
 
     ![](robotsBug.jpg)
 
-- The implementation for parallelization of the LLM is incorrect. I attempted to parallelize it, but I was getting issues while running. Currently, this process is threaded with simply 1 LLM worker. This code works, but it takes a long time to run and complete. I unfortunately ran out of time to produce a full LLM-fixed JSON file, so I simply scraped a few webpages and passed the output JSON file through the LLM to ensure accurate results. See [output files](#Output-Files) for more information.
-- I would greatly appreciate feedback on how to best implement the parallelization of the LLM. I have a feeling my thought process is incorrect, but I'm not sure.
+- The implementation for parallelization of the LLM is incorrect. I attempted to parallelize it, but I was getting issues while running. Currently, this process is threaded with simply 1 LLM worker (I'm not too confident that this is the correct approach). This code works, but it takes a long time to run and complete. I unfortunately ran out of time to produce a full LLM-fixed JSON file, so I simply scraped a few webpages and passed the output JSON file through the LLM to ensure accurate results. See [output files](#Output-Files) for more information.
+    - I would greatly appreciate feedback on how to best implement the parallelization of the LLM. I have a feeling my thought process is incorrect, but I'm not sure.
