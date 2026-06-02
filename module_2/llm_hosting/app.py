@@ -301,6 +301,7 @@ def standardize() -> Any:
 
     return jsonify({"rows": out})
 
+
 # New function for parallelization
 def enrich_row(row):
     university_text = (row or {}).get("university") or ""
@@ -311,6 +312,7 @@ def enrich_row(row):
     row["llm-generated-university"] = result["standardized_university"]
 
     return row
+
 
 def _cli_process_file(
     in_path: str,

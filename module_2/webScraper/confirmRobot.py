@@ -30,3 +30,5 @@ def confirm_robot(BASE_URL):
     for test_path in paths:
         test_url = parse.urljoin(BASE_URL,test_path)
         print(f"{robotParser.can_fetch(agent, test_url), test_url}")
+
+confirm_robot("https://www.thegradcafe.com")

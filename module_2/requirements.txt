@@ -23,3 +23,18 @@ Python 3.10+
     - robotparser
 - json
 - os
+- sys
+- typing
+    - Any
+    - Dict
+    - List
+    - Tuple
+- flask
+    - Flask
+    - jsonify
+    - request
+- huggingface_hub
+    - hf_hub_download
+- llama_cpp
+    - Llama
+    
