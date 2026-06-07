@@ -8,11 +8,12 @@ class GradApplicant:
     degreeType: str = None
     datePosted: str = None
     status: str = None
+    statusDate: str = None
     semester: str = None
     citizenship: str = None
     gpa: float = None
-    gre: int = None
-    gre_v: int = None
+    gre: float = None
+    gre_v: float = None
     gre_aw: float = None
     comment: str = None
     url: str = None

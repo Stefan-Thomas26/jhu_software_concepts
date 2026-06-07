@@ -29,8 +29,20 @@ def _parse_main_row(row, base_url, applicant):
     applicant.program = spans[0].get_text(strip=True)
     applicant.degreeType = spans[1].get_text(strip=True)
     applicant.datePosted = row.select_one("td:nth-of-type(3)").get_text(strip=True)
-    applicant.status = row.select_one("td:nth-of-type(4)").get_text(strip=True)
     
+    # Get status
+    status_td = row.select_one("td:nth-of-type(4)")
+    status_text = status_td.get_text(strip=True)
+    if " on " in status_text:
+        parts = status_text.split(" on ", 1)
+        applicant.status = parts[0].strip()
+        applicant.statusDate = parts[1].strip()
+    else:
+        applicant.status = status_text
+        applicant.statusDate = None
+
+    
+
     link_tag = row.find("a")
     applicant.url = parse.urljoin(base_url, link_tag["href"]) if link_tag else None
     
@@ -45,7 +57,7 @@ def _parse_main_row(row, base_url, applicant):
 def _parse_details_row(row, applicant):
     # initialzie data
     applicant.semester = None
-    applicant.citizenship   = None 
+    applicant.citizenship = None 
     applicant.gre  = None
     applicant.gre_v  = None
     applicant.gre_aw = None
@@ -73,7 +85,7 @@ def _parse_details_row(row, applicant):
         elif text.startswith("GRE"):
             # plain GRE score
             try:
-                applicant.gre = int(re.search(r"\d{3}", text).group())
+                applicant.gre = float(re.search(r"\d{3}", text).group())
             except:
                 pass
 
