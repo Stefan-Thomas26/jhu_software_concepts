@@ -1,0 +1,9 @@
+
+# THE USER NEEDS TO UPDATE THESE VARIABLES TO LOG INTO AN EXISTING DATABASE
+# TO CREATE A NEW DATABASE 
+def _get_credentials():
+    USERNAME = "postgres"
+    PASSWORD = "Thomas99!"
+    HOST = "localhost"
+
+    return USERNAME, PASSWORD, HOST
