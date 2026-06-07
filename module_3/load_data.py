@@ -1,25 +1,25 @@
 import psycopg
 import credentials
-
+from datetime import datetime
 
 # Create table sql string
 def _create_table_sql():
     CREATE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS applicants (
-        p_id            INTEGER PRIMARY KEY,
-        university                 TEXT,
-        program                    TEXT,
-        degreeType                 TEXT,
-        datePosted                 TEXT,
-        status                     TEXT,
-        semester                   TEXT,
-        citizenship                TEXT,
-        gpa                        FLOAT,
-        gre                        FLOAT,
-        gre_v                      FLOAT,
-        gre_aw                     FLOAT,
-        comment                    TEXT,
-        url                        TEXT
+        p_id           INTEGER PRIMARY KEY,
+        program        TEXT,
+        degreeType     TEXT,
+        datePosted     DATE,
+        status         TEXT,
+        statusDate     TEXT,
+        semester       TEXT,
+        citizenship    TEXT,
+        gpa            FLOAT,
+        gre            FLOAT,
+        gre_v          FLOAT,
+        gre_aw         FLOAT,
+        comment        TEXT,
+        url            TEXT
     );
     """
     
@@ -49,7 +49,7 @@ def _insert_sql():
 
     INSERT_SQL = """
     INSERT INTO applicants (
-        p_id, university, program, degreeType, datePosted, status, semester,
+        p_id, program, degreeType, datePosted, status, statusDate, semester,
         citizenship, gpa, gre, gre_v, gre_aw, comment, url)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (p_id) DO NOTHING;
@@ -66,7 +66,20 @@ def _insert_sql():
 
     return INSERT_SQL
 
-# ==================================================================
+def parse_date(date_str):
+    """Convert 'Mar 12, 2025' to datetime.date object. Returns None if blank."""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str.strip(), "%b %d, %Y").date()
+    except ValueError:
+        return None
+
+def combine_uni_program(university, program):
+    """Combine university + program into one string as the assignment requires."""
+    if university and program:
+        return f"{university} - {program}"
+    return university or program or None
 
 
 def load_into_db(applicants):
@@ -116,7 +129,6 @@ def load_into_db(applicants):
     # ========================
     # Create table in database      
     # ========================
-    
     createTableSql = _create_table_sql()
 
     # Delete table if it already exists and make new one
@@ -131,15 +143,14 @@ def load_into_db(applicants):
     for a in applicants:
         row = (
             a.get("applicantNumber"),
-            a.get("university"),
-            a.get("program"),
+            combine_uni_program(a.get("university"), a.get("program")),
+            # a.get("university"),
+            # a.get("program"),
             a.get("degreeType"),
-            # build_program(a.get("university"), a.get("program")),
-            # parse_date(a.get("datePosted")),
-            a.get("datePosted"),
-            
-            # parse_status(a.get("status")),
+            parse_date(a.get("datePosted")),
+            # a.get("datePosted"),
             a.get("status"),
+            a.get("statusDate"),
             a.get("semester"),
             a.get("citizenship"),
             a.get("gpa"),
@@ -165,9 +176,32 @@ def load_into_db(applicants):
             conn.rollback()
             continue
 
+    # ============
+    # DEBUGGING START
+    # ==========
+    # Check distinct status values
+    print("=== STATUS VALUES ===")
+    cursor.execute("SELECT DISTINCT status FROM applicants LIMIT 20;")
+    for row in cursor.fetchall():
+        print(row)
+
+    # Check distinct semester values
+    print("\n=== SEMESTER VALUES ===")
+    cursor.execute("SELECT DISTINCT semester FROM applicants;")
+    for row in cursor.fetchall():
+        print(row)
+
+    # Preview a few rows
+    print("\n=== SAMPLE ROWS ===")
+    cursor.execute("SELECT * FROM applicants LIMIT 5;")
+    for row in cursor.fetchall():
+        print(row)  
+    # ============
+    # DEBUGGING END
+    # ==========
 
     conn.commit()
     cursor.close()
     conn.close()
 
-    print(f"Done — {inserted} inserted, {skipped} skipped (duplicates).")
+    print(f"Done — {inserted} inserted in table, {skipped} skipped (duplicates).")
