@@ -6,11 +6,11 @@ from llm_hosting.app import enrich_row
 
 
 # ================
-# Define Constants 
+# Define Constants
 # ================
 start = time.time()
 BASE_URL = "https://www.thegradcafe.com"
-totalPages = 3000
+totalPages = 2000
 
 # ======================
 # Verify robots.txt file 

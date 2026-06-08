@@ -1,20 +1,27 @@
 import psycopg
-import credentials
+import configuration
 
-
+# ========================================
+# Get connection to applicantdata database
+# ========================================
 def get_connection():
-    USERNAME, PASSWORD, HOST = credentials._get_credentials()
+    USERNAME, PASSWORD, HOST = configuration._get_credentials()
     return psycopg.connect(
         dbname="applicantdata",
         user=USERNAME,
         password=PASSWORD,
         host=HOST
     )
- 
+
+
+# ===========
+# Run a query
+# ===========
 def run_query(cursor, sql, params=None):
     """Executes a query and returns all results."""
     cursor.execute(sql, params or ())
     return cursor.fetchall()
+
 
 # =========
 # QUESTIONS
@@ -202,6 +209,7 @@ def q9_llm_fields(cursor):
     """
     result = run_query(cursor, sql)
     count = result[0][0]
+
     print(f"Q9: Top school PhD CS 2026 acceptances (LLM fields): {count}")
     return count
  
@@ -228,8 +236,6 @@ def q10_phd_rejection_rate_by_year(cursor):
         ORDER BY semester DESC;
     """
     results = run_query(cursor, sql)
-
-    print(results)
 
     print("\nQ10a: PhD rejection rate by year (2025 vs 2026):")
     for row in results:
@@ -260,4 +266,50 @@ def q11_phd_gpa_accepted_vs_rejected(cursor):
     print("\nQ10b: Average GPA of PhD applicants accepted vs rejected in 2026:")
     for row in results:
         print(f"  {row[0]}: avg GPA = {row[2]} ({row[1]} applicants with GPA reported)")
+    return results
+
+
+# ===============
+# Run all queries
+# ===============
+def run_all_queries():
+    """Run all queries and return results as a dictionary."""
+    
+    conn   = get_connection()
+    cursor = conn.cursor()
+    results = {}
+
+    print("=" * 60)
+    print("GRAD CAFÉ DATA ANALYSIS")
+    print("=" * 60)
+ 
+    try:
+        results["q1"]  = q1_fall2026_count(cursor)
+        results["q2"]  = q2_international_percent(cursor)
+        results["q3"]  = q3_average_scores(cursor)
+        results["q4"]  = q4_american_fall2026_gpa(cursor)
+        results["q5"]  = q5_fall2026_acceptance_pct(cursor)
+        results["q6"]  = q6_fall2026_accepted_gpa(cursor)
+        results["q7"]  = q7_jhu_masters_cs(cursor)
+        results["q8"]  = q8_top_schools_phd_cs_2026(cursor)
+
+
+
+        # !!!!!!!!!!! STEFAN TODO NEED TO FIX LLM STUFF! !!!!!!!!!!!
+        # results["q9"]  = q9_llm_fields(cursor)
+
+
+
+
+        results["q10"] = q10_phd_rejection_rate_by_year(cursor)
+        results["q11"] = q11_phd_gpa_accepted_vs_rejected(cursor)
+    
+    except Exception as e:
+        print(f"Query error: {e}")
+        print("=" * 60)
+    
+    finally:
+        cursor.close()
+        conn.close()
+ 
     return results

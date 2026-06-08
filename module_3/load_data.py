@@ -1,95 +1,16 @@
 import psycopg
-import credentials
+import configuration
 from datetime import datetime
 
-# Create table sql string
-def _create_table_sql():
-    CREATE_TABLE_SQL = """
-    CREATE TABLE IF NOT EXISTS applicants (
-        p_id           INTEGER PRIMARY KEY,
-        program        TEXT,
-        degreeType     TEXT,
-        datePosted     DATE,
-        status         TEXT,
-        statusDate     TEXT,
-        semester       TEXT,
-        citizenship    TEXT,
-        gpa            FLOAT,
-        gre            FLOAT,
-        gre_v          FLOAT,
-        gre_aw         FLOAT,
-        comment        TEXT,
-        url            TEXT
-    );
-    """
-    
-    # CREATE_TABLE_SQL = """
-    # CREATE TABLE IF NOT EXISTS applicants (
-    #     p_id                    INTEGER PRIMARY KEY,
-    #     program                 TEXT,
-    #     comments                TEXT,
-    #     date_added              DATE,
-    #     url                     TEXT,
-    #     status                  TEXT,
-    #     term                    TEXT,
-    #     us_or_international     TEXT,
-    #     gpa                     FLOAT,
-    #     gre                     FLOAT,
-    #     gre_v                   FLOAT,
-    #     gre_aw                  FLOAT,
-    #     degree                  TEXT,
-    #     llm_generated_program   TEXT,
-    #     llm_generated_university TEXT
-    # );
-    # """
 
-    return CREATE_TABLE_SQL
-
-def _insert_sql():
-
-    INSERT_SQL = """
-    INSERT INTO applicants (
-        p_id, program, degreeType, datePosted, status, statusDate, semester,
-        citizenship, gpa, gre, gre_v, gre_aw, comment, url)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    ON CONFLICT (p_id) DO NOTHING;
-    """
-
-    # INSERT_SQL = """
-    # INSERT INTO applicants (
-    #     p_id, program, comments, date_added, url, status, term,
-    #     us_or_international, gpa, gre, gre_v, gre_aw, degree,
-    #     llm_generated_program, llm_generated_university
-    # ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    # ON CONFLICT (p_id) DO NOTHING;
-    # """
-
-    return INSERT_SQL
-
-def parse_date(date_str):
-    """Convert 'Mar 12, 2025' to datetime.date object. Returns None if blank."""
-    if not date_str:
-        return None
-    try:
-        return datetime.strptime(date_str.strip(), "%b %d, %Y").date()
-    except ValueError:
-        return None
-
-def combine_uni_program(university, program):
-    """Combine university + program into one string as the assignment requires."""
-    if university and program:
-        return f"{university} - {program}"
-    return university or program or None
-
-
-def load_into_db(applicants):
+def create_database():
     # =========================================================================
     # CONNECT TO PostgreSQL
     # Insert all applicants into PostgreSQL. Skips duplicates via ON CONFLICT.
     # =========================================================================
     
     # get user credentials 
-    USERNAME, PASSWORD, HOST = credentials._get_credentials()
+    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
 
     # Connect to an already-existing database in order to create a new database
     defaultConnection = psycopg.connect(
@@ -116,6 +37,71 @@ def load_into_db(applicants):
     default_cur.close()
     defaultConnection.close()
 
+
+
+# Create table sql string
+def _create_table_sql():
+    CREATE_TABLE_SQL = """
+    CREATE TABLE IF NOT EXISTS applicants (
+        p_id           INTEGER PRIMARY KEY,
+        program        TEXT,
+        degreeType     TEXT,
+        datePosted     DATE,
+        status         TEXT,
+        statusDate     TEXT,
+        semester       TEXT,
+        citizenship    TEXT,
+        gpa            FLOAT,
+        gre            FLOAT,
+        gre_v          FLOAT,
+        gre_aw         FLOAT,
+        comment        TEXT,
+        url            TEXT
+    );
+    """
+
+    return CREATE_TABLE_SQL
+
+
+def _insert_sql():
+    INSERT_SQL = """
+    INSERT INTO applicants (
+        p_id, program, degreeType, datePosted, status, statusDate, semester,
+        citizenship, gpa, gre, gre_v, gre_aw, comment, url)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ON CONFLICT (p_id) DO NOTHING;
+    """
+    
+    return INSERT_SQL
+
+
+
+
+def parse_date(date_str):
+    """Convert 'Mar 12, 2025' to datetime.date object. Returns None if blank."""
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str.strip(), "%b %d, %Y").date()
+    except ValueError:
+        return None
+
+
+
+
+
+def combine_uni_program(university, program):
+    """Combine university + program into one string as the assignment requires."""
+    if university and program:
+        return f"{university} - {program}"
+    return university or program or None
+
+
+
+
+
+def load_into_db(applicants):
+    
     # Make new connection to applicantdata database
     conn = psycopg.connect(
         dbname = "applicantdata",
@@ -124,7 +110,6 @@ def load_into_db(applicants):
         host = HOST
         )
     cursor = conn.cursor()
-
 
     # ========================
     # Create table in database      
@@ -176,29 +161,29 @@ def load_into_db(applicants):
             conn.rollback()
             continue
 
-    # ============
-    # DEBUGGING START
-    # ==========
-    # Check distinct status values
-    print("=== STATUS VALUES ===")
-    cursor.execute("SELECT DISTINCT status FROM applicants LIMIT 20;")
-    for row in cursor.fetchall():
-        print(row)
+    # # ============
+    # # DEBUGGING START
+    # # ==========
+    # # Check distinct status values
+    # print("=== STATUS VALUES ===")
+    # cursor.execute("SELECT DISTINCT status FROM applicants LIMIT 20;")
+    # for row in cursor.fetchall():
+    #     print(row)
 
-    # Check distinct semester values
-    print("\n=== SEMESTER VALUES ===")
-    cursor.execute("SELECT DISTINCT semester FROM applicants;")
-    for row in cursor.fetchall():
-        print(row)
+    # # Check distinct semester values
+    # print("\n=== SEMESTER VALUES ===")
+    # cursor.execute("SELECT DISTINCT semester FROM applicants;")
+    # for row in cursor.fetchall():
+    #     print(row)
 
-    # Preview a few rows
-    print("\n=== SAMPLE ROWS ===")
-    cursor.execute("SELECT * FROM applicants LIMIT 5;")
-    for row in cursor.fetchall():
-        print(row)  
-    # ============
-    # DEBUGGING END
-    # ==========
+    # # Preview a few rows
+    # print("\n=== SAMPLE ROWS ===")
+    # cursor.execute("SELECT * FROM applicants LIMIT 5;")
+    # for row in cursor.fetchall():
+    #     print(row)  
+    # # ============
+    # # DEBUGGING END
+    # # ==========
 
     conn.commit()
     cursor.close()

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grad Café Data Analysis</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&family=DM+Mono&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="header-title">
+        <span class="header-eyebrow">Module 3</span>
+        <h1>Grad Café<br/>Data Analysis</h1>
+        <p class="header-sub">SQL analysis of {{ "{:,}".format(results.q1 or 0) }} Fall 2026 applicants</p>
+      </div>
+      <div class="header-actions">
+
+        <!-- Status bars -->
+        <div id="db-status-bar" class="status-bar {% if db_init.running %}visible{% endif %}">
+          <span class="status-dot {% if db_init.running %}pulsing{% endif %}"></span>
+          <span id="db-status-text">{{ db_init.message }}</span>
+        </div>
+        <div id="scraper-status-bar" class="status-bar {% if scraper.running %}visible{% endif %}">
+          <span class="status-dot {% if scraper.running %}pulsing{% endif %}"></span>
+          <span id="scraper-status-text">{{ scraper.message }}</span>
+        </div>
+
+        <!-- Buttons -->
+        <button id="btn-create" class="btn btn-create" onclick="createDatabase()">
+          ⚙ Create Database
+          <span class="btn-hint">Runs load_data.py using your userConfig.json settings</span>
+        </button>
+        <button id="btn-pull" class="btn btn-primary" onclick="pullData()">
+          ⬇ Pull Data
+          <span class="btn-hint">Scrapes new entries from Grad Café and adds them to the database</span>
+        </button>
+        <button id="btn-update" class="btn btn-secondary" onclick="updateAnalysis()">
+          ↻ Update Analysis
+          <span class="btn-hint">Refreshes all results — disabled while any task is running</span>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="cards-grid">
+      <div class="card accent">
+        <div class="card-label">Q1 — Fall 2026 Entries</div>
+        <div class="card-value" id="q1">{{ results.q1 or "—" }}</div>
+        <div class="card-desc">total applicants for Fall 2026</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Q2 — International Students</div>
+        <div class="card-value" id="q2">{{ results.q2 or "—" }}%</div>
+        <div class="card-desc">of all entries are international</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Q5 — Fall 2026 Acceptance Rate</div>
+        <div class="card-value" id="q5">{{ results.q5 or "—" }}%</div>
+        <div class="card-desc">of Fall 2026 entries were accepted</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Q7 — JHU Masters CS</div>
+        <div class="card-value" id="q7">{{ results.q7 or "—" }}</div>
+        <div class="card-desc">applied to JHU for a Masters in CS</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Q3 — Average Applicant Scores</h2>
+      <p class="section-sub">Averages across applicants who reported each metric</p>
+      <div class="scores-grid" id="q3">
+        {% if results.q3 %}
+        <div class="score-item">
+          <div class="score-label">GPA</div>
+          <div class="score-val">{{ results.q3[0] or "N/A" }}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">GRE Quant</div>
+          <div class="score-val">{{ results.q3[1] or "N/A" }}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">GRE Verbal</div>
+          <div class="score-val">{{ results.q3[2] or "N/A" }}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">GRE Writing</div>
+          <div class="score-val">{{ results.q3[3] or "N/A" }}</div>
+        </div>
+        {% else %}
+        <p class="no-data">No data available</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">GPA Analysis</h2>
+      <div class="two-col">
+        <div class="info-box">
+          <div class="info-label">Q4 — Avg GPA of American Students (Fall 2026)</div>
+          <div class="info-value" id="q4">{{ results.q4 or "—" }}</div>
+        </div>
+        <div class="info-box">
+          <div class="info-label">Q6 — Avg GPA of Fall 2026 Acceptances</div>
+          <div class="info-value" id="q6">{{ results.q6 or "—" }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Q8 — Top School PhD CS Acceptances (2026)</h2>
+      <p class="section-sub">Georgetown · MIT · Stanford · Carnegie Mellon — PhD Computer Science</p>
+      <div class="big-number" id="q8">{{ results.q8 or "—" }}</div>
+      <p class="section-sub">accepted applicants found in dataset</p>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Q9 — Same Query Using LLM Generated Fields</h2>
+      <p class="section-sub">Do standardised LLM university/program names change the count?</p>
+      <div id="q9">
+        {% if results.q9 is none %}
+        <div class="info-box warning">
+          <div class="info-label">LLM fields not yet populated</div>
+          <div class="info-value-sm">Run load_data.py with LLM enrichment enabled, then click Update Analysis.</div>
+        </div>
+        {% else %}
+        <div class="big-number">{{ results.q9 }}</div>
+        <p class="section-sub">acceptances using standardised LLM field names</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Q10a — PhD Rejection Rate: 2025 vs 2026</h2>
+      <p class="section-sub">Are PhD programs becoming more or less selective year over year?</p>
+      <div class="table-wrap" id="q10">
+        {% if results.q10 %}
+        <table>
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Total Applicants</th>
+              <th>Rejections</th>
+              <th>Rejection Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in results.q10 %}
+            <tr>
+              <td>{{ row[0] }}</td>
+              <td>{{ "{:,}".format(row[1]) }}</td>
+              <td>{{ "{:,}".format(row[2]) }}</td>
+              <td><span class="pill">{{ row[3] }}%</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No data available</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Q10b — Accepted vs Rejected PhD GPA (2026)</h2>
+      <p class="section-sub">Does GPA meaningfully differentiate outcomes for PhD applicants?</p>
+      <div class="two-col" id="q11">
+        {% if results.q11 %}
+          {% for row in results.q11 %}
+          <div class="info-box {% if row[0] == 'Accepted' %}accent-box{% endif %}">
+            <div class="info-label">{{ row[0] }}</div>
+            <div class="info-value">{{ row[2] }}</div>
+            <div class="info-sub">{{ "{:,}".format(row[1]) }} applicants reported GPA</div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <p class="no-data">No data available</p>
+        {% endif %}
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>Data sourced from <a href="https://www.thegradcafe.com" target="_blank">thegradcafe.com</a> · JHU Modern Software Concepts Summer 2026</p>
+  </footer>
+
+  <script>
+    // ── POLL STATUS ──────────────────────────────────────────────────────────
+    function pollStatus() {
+      // Poll scraper
+      fetch("/scraper-status").then(r => r.json()).then(data => {
+        updateStatusBar("scraper-status-bar", "scraper-status-text", "btn-pull",
+          data, "⬇ Pull Data", "Scrapes new entries from Grad Café and adds them to the database");
+      });
+
+      // Poll db init
+      fetch("/db-init-status").then(r => r.json()).then(data => {
+        updateStatusBar("db-status-bar", "db-status-text", "btn-create",
+          data, "⚙ Create Database", "Runs load_data.py using your userConfig.json settings");
+      });
+    }
+
+    function updateStatusBar(barId, textId, btnId, data, btnLabel, btnHint) {
+      const bar  = document.getElementById(barId);
+      const dot  = bar.querySelector(".status-dot");
+      const text = document.getElementById(textId);
+      const btn  = document.getElementById(btnId);
+
+      text.textContent = data.message;
+
+      if (data.running) {
+        bar.classList.add("visible");
+        dot.classList.add("pulsing");
+        btn.disabled = true;
+      } else {
+        dot.classList.remove("pulsing");
+        btn.disabled = false;
+        if (data.message) bar.classList.add("visible");
+      }
+    }
+
+    setInterval(pollStatus, 3000);
+
+    // ── CREATE DATABASE ──────────────────────────────────────────────────────
+    function createDatabase() {
+      fetch("/create-database", { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+          const bar  = document.getElementById("db-status-bar");
+          const text = document.getElementById("db-status-text");
+          bar.classList.add("visible");
+          text.textContent = data.message;
+          if (data.status === "started") {
+            document.getElementById("btn-create").disabled = true;
+          }
+        });
+    }
+
+    // ── PULL DATA ────────────────────────────────────────────────────────────
+    function pullData() {
+      fetch("/pull-data", { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+          const bar  = document.getElementById("scraper-status-bar");
+          const text = document.getElementById("scraper-status-text");
+          bar.classList.add("visible");
+          text.textContent = data.message;
+          if (data.status === "started") {
+            document.getElementById("btn-pull").disabled = true;
+          }
+        });
+    }
+
+    // ── UPDATE ANALYSIS ──────────────────────────────────────────────────────
+    function updateAnalysis() {
+      const btn = document.getElementById("btn-update");
+      btn.disabled = true;
+      btn.textContent = "Updating...";
+
+      fetch("/update-analysis")
+        .then(r => {
+          if (r.status === 409) {
+            return r.json().then(data => {
+              alert(data.message);
+              btn.disabled = false;
+              btn.innerHTML = '↻ Update Analysis<span class="btn-hint">Refreshes all results — disabled while any task is running</span>';
+            });
+          }
+          return r.json().then(data => {
+            if (data.status === "ok") window.location.reload();
+          });
+        });
+    }
+  </script>
+
+</body>
+</html>
