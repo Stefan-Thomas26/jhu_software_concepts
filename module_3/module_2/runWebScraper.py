@@ -1,21 +1,26 @@
-from concurrent.futures import ThreadPoolExecutor
-from webScraper import confirmRobot, scrapeData, cleanData, saveData, loadData
+# Python Packages
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import time
 from pathlib import Path
+import os
+import argparse
+
+# My Packages
 from llm_hosting.app import enrich_row
+from webScraper import confirmRobot, scrapeData, cleanData, saveData, loadData
+
 
 
 # ================
 # Define Constants
 # ================
-start = time.time()
 BASE_URL = "https://www.thegradcafe.com"
-totalPages = 2000
+TOTAL_PAGES = 1510
+SCRAPE_OUTPUT = "applicant_data.json"
+LLM_OUTPUT = "llm_extended_applicant_data.json"
+# Leave at least 1–2 cores free for the OS.
+NUM_LLM_WORKERS = max(1, os.cpu_count() - 2)
 
-# ======================
-# Verify robots.txt file 
-# ======================
-confirmRobot.confirm_robot(BASE_URL)
 
 
 # ===============
@@ -34,74 +39,104 @@ def process_page(page_num):
     # process_page FUNCTION END
 
 
+
 # ===============================================
 # PART I - Create a .json with all applicant data
 # ===============================================
+def run_scraper():
+    """Part I — scrape all pages and save to JSON."""
 
-allGradApplicants = []
-numScrapeWorkers = 10
-# run thread pool
-with ThreadPoolExecutor(max_workers = numScrapeWorkers) as executor:
-    results = executor.map(process_page, range(1, totalPages+1))
-    
-    for page_applicants in results:
-        allGradApplicants.extend(page_applicants)
+    # ======================
+    # Verify robots.txt file 
+    # ======================
+    confirmRobot.confirm_robot(BASE_URL)
+
+    start = time.time()
+    allGradApplicants = []
+    numScrapeWorkers = 10
+    # run thread pool
+    with ThreadPoolExecutor(max_workers = numScrapeWorkers) as executor:
+        results = executor.map(process_page, range(1, TOTAL_PAGES+1))
+        
+        for page_applicants in results:
+            allGradApplicants.extend(page_applicants)
 
 
-for ii, applicant in enumerate(allGradApplicants, start=1):
-    applicant.applicantNumber = ii 
+    for ii, applicant in enumerate(allGradApplicants, start=1):
+        applicant.applicantNumber = ii 
 
-# Create filename to store applicant data PRE LLM
-applicantDataFilename = "applicant_data.json"
+    # Create filename to store applicant data PRE LLM
+    applicantDataFilename = SCRAPE_OUTPUT
 
-saveData.save_data(allGradApplicants, applicantDataFilename)
-print(f"!!! Elapsed time = {(time.time() - start)/60} minutes !!!")
-print("::::::::::::::::::::::")
+    saveData.save_data(allGradApplicants, applicantDataFilename)
+    print(f"!!! Elapsed time = {(time.time() - start)/60} minutes !!!")
+    print("::::::::::::::::::::::")
 
-# Find absolute path to .json file on local machine
-applicantDataFilePath = Path(applicantDataFilename)
+    # Find absolute path to .json file on local machine
+    applicantDataFilePath = Path(applicantDataFilename)
 
-# open file
-loadData.view_file(applicantDataFilePath)
+    # open file
+    loadData.view_file(applicantDataFilePath)
 
 
 
 # ========================================
 # PART II - run applicant data through LLM
 # ========================================
-numLlmWorkers = 1 # Never figured out how to parallelize this
 
-# Load Data using default .json file viewer on machine
-applicantDataRows = loadData.load_data(applicantDataFilePath.resolve())
+def run_llm(input_file = SCRAPE_OUTPUT, num_workers = NUM_LLM_WORKERS):
+    """Part II — enrich scraped rows with LLM and save to JSON."""
 
-# run thread pool
-with ThreadPoolExecutor(max_workers = numLlmWorkers) as executor:
-    enriched_rows = list(executor.map(enrich_row, applicantDataRows))
+    start = time.time()
 
-outputLLMfilename = "llm_extended_applicant_data.json"
-saveData.save_data(enriched_rows, outputLLMfilename)
-
-# Find absolute path to .json file on local machine
-applicantDataFilePath_LLM = Path(outputLLMfilename)
-
-# Open File
-loadData.view_file(applicantDataFilePath_LLM)
+    # Load Data using default .json file viewer on machine
+    applicantDataRows = loadData.load_data(Path(input_file).resolve())
+    print(f"Loaded {len(applicantDataRows)} rows from {input_file}")
+    print(f"Running LLM enrichment with {NUM_LLM_WORKERS} worker processes...")
 
 
-# ==============================
-# Loop through multiple webpages
-# ==============================
-# allGradApplicants = []
-# count = 0
-# for pageNum in range(1, totalPages+1):
+    # IMPORTANT: ProcessPoolExecutor must be inside if __name__ == "__main__"
+    # to avoid recursive spawning on Windows/macOS
+    with ProcessPoolExecutor(max_workers = num_workers) as executor:
+        enriched_rows = list(executor.map(enrich_row, applicantDataRows, chunksize=10))
 
-#     # Scrape webpage for html data
-#     html_data = scrape.scrape(BASE_URL, pageNum)
-#     # Collect and organize Grad Applicant data
-#     applicantsFromCurrentPage, count = cleanData.clean_data(html_data, BASE_URL, count)
+    # Save the output LLM JSON file
+    outputLLMfilename = LLM_OUTPUT
+    saveData.save_data(enriched_rows, outputLLMfilename)
+    print(f"LLM enrichment done — saved to {LLM_OUTPUT}")
+    print(f"!!! Total elapsed time = {(time.time() - start)/60} minutes !!!")
+    loadData.view_file(Path(outputLLMfilename))
 
-#     # Add applicants from current page to the larger list of all applicants
-#     allGradApplicants = allGradApplicants + applicantsFromCurrentPage
 
-# # Save this data to a .json file
-# saveData.save_data(allGradApplicants)
+# Include arguments for better indepedent testing
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--part",
+        choices=["1", "2", "both"],
+        default="both",
+        help="Which part to run: 1 (scrape), 2 (LLM), or both"
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=2,
+        help="Number of LLM worker processes (default: 2)"
+    )
+    parser.add_argument(
+        "--input",
+        default=SCRAPE_OUTPUT,
+        help="Input JSON file for Part II (default: applicant_data.json)"
+    )
+    args = parser.parse_args()
+
+    if args.part == "1":
+        run_scraper()
+    elif args.part == "2":
+        run_llm(input_file=args.input, num_workers=args.workers)
+    else:
+        run_scraper()
+        run_llm(num_workers=args.workers)
+
+

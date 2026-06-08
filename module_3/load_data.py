@@ -1,9 +1,13 @@
+# Python Packages
 import psycopg
-import configuration
 from datetime import datetime
+from pathlib import Path
+# My Packages
+import configuration
 
 
-def create_database():
+
+def create_new_database(new_database_name):
     # =========================================================================
     # CONNECT TO PostgreSQL
     # Insert all applicants into PostgreSQL. Skips duplicates via ON CONFLICT.
@@ -14,10 +18,10 @@ def create_database():
 
     # Connect to an already-existing database in order to create a new database
     defaultConnection = psycopg.connect(
-        dbname = "postgres",
-        user = USERNAME,
-        password = PASSWORD,
-        host = HOST
+        dbname      = "postgres",
+        user        = USERNAME,
+        password    = PASSWORD,
+        host        = HOST
         )
 
     defaultConnection.autocommit = True
@@ -27,10 +31,10 @@ def create_database():
 
         # Try to create a new database if it does not exist already
         try:
-            default_cur.execute("CREATE DATABASE applicantdata")
-            print("Created database applicantdata!")
+            default_cur.execute(f"CREATE DATABASE {new_database_name}")
+            print(f"Created database called {new_database_name}!")
         except psycopg.errors.DuplicateDatabase:
-            print("applicantdata database already exists!")
+            print(f"A database called {new_database_name} already exists!")
 
 
     # Close default connections
@@ -63,6 +67,7 @@ def _create_table_sql():
     return CREATE_TABLE_SQL
 
 
+
 def _insert_sql():
     INSERT_SQL = """
     INSERT INTO applicants (
@@ -73,7 +78,6 @@ def _insert_sql():
     """
     
     return INSERT_SQL
-
 
 
 
@@ -88,8 +92,6 @@ def parse_date(date_str):
 
 
 
-
-
 def combine_uni_program(university, program):
     """Combine university + program into one string as the assignment requires."""
     if university and program:
@@ -97,28 +99,48 @@ def combine_uni_program(university, program):
     return university or program or None
 
 
-
-
-
-def load_into_db(applicants):
+# Clear database
+def reset_database(databaseName):
     
-    # Make new connection to applicantdata database
+    # get user credentials 
+    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+
+    # Make new connection to  database that we made
     conn = psycopg.connect(
-        dbname = "applicantdata",
-        user = USERNAME,
-        password = PASSWORD,
-        host = HOST
+    dbname      = databaseName,
+    user        = USERNAME,
+    password    = PASSWORD,
+    host        = HOST
+    )
+    
+    cursor = conn.cursor()
+    cursor.execute(f"DROP TABLE IF EXISTS {databaseName}")
+    conn.commit()
+
+    print(f"The database {databaseName} has been cleared!")
+
+
+
+def load_into_db(applicants, databaseName):
+    
+    # get user credentials 
+    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+
+    # Make new connection to  database that we made
+    conn = psycopg.connect(
+        dbname      = databaseName,
+        user        = USERNAME,
+        password    = PASSWORD,
+        host        = HOST
         )
     cursor = conn.cursor()
+
 
     # ========================
     # Create table in database      
     # ========================
     createTableSql = _create_table_sql()
 
-    # Delete table if it already exists and make new one
-    cursor.execute("DROP TABLE IF EXISTS applicants")
-    conn.commit()
     cursor.execute(createTableSql)
     conn.commit()
 
@@ -161,32 +183,44 @@ def load_into_db(applicants):
             conn.rollback()
             continue
 
-    # # ============
-    # # DEBUGGING START
-    # # ==========
-    # # Check distinct status values
-    # print("=== STATUS VALUES ===")
-    # cursor.execute("SELECT DISTINCT status FROM applicants LIMIT 20;")
-    # for row in cursor.fetchall():
-    #     print(row)
-
-    # # Check distinct semester values
-    # print("\n=== SEMESTER VALUES ===")
-    # cursor.execute("SELECT DISTINCT semester FROM applicants;")
-    # for row in cursor.fetchall():
-    #     print(row)
-
-    # # Preview a few rows
-    # print("\n=== SAMPLE ROWS ===")
-    # cursor.execute("SELECT * FROM applicants LIMIT 5;")
-    # for row in cursor.fetchall():
-    #     print(row)  
-    # # ============
-    # # DEBUGGING END
-    # # ==========
-
     conn.commit()
     cursor.close()
     conn.close()
 
     print(f"Done — {inserted} inserted in table, {skipped} skipped (duplicates).")
+
+
+
+def load_data_to_database(filename=None):
+    # Create new database called "applicantdata" if one does not already exist
+    databaseName = "applicantdata"
+    create_new_database(databaseName)
+
+
+    if filename is None:
+        try:
+            config_path = configuration.get_configuration_filepath()
+            config      = configuration.load_json(config_path)
+            filename    = config[0].get("dataFile", "module_2/applicant_data.json")
+        
+        except Exception:
+            filename = "module_2/applicant_data.json"
+
+
+    # Find absolute path to .json file on local machine
+    applicantDataFilePath = Path(filename)
+
+    # Load JSON file
+    applicants = configuration.load_json(applicantDataFilePath.resolve())
+    
+    # Load applicant data into the database
+    load_into_db(applicants, databaseName)
+
+
+def main():
+    # reset_database("applicantdata")
+    load_data_to_database()
+
+
+if __name__ == "__main__":
+    main()

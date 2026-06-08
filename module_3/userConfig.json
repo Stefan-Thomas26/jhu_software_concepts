@@ -2,6 +2,7 @@
     {
         "user": "postgres",
         "password": "Thomas99!",
-        "host": "localhost"
+        "host": "localhost",
+        "dataFile": "module_2/applicant_data.json"
     }
 ]

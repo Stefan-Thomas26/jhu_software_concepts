@@ -3,19 +3,17 @@ import subprocess
 import sys
 import os
 import threading
-import psycopg
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
-from pathlib import Path
 
 # My Packages
 import query_data
+from load_data import load_data_to_database
 import configuration
 
 
 # =====================
 # Create Flask Instance
 # =====================
-
 app = Flask(__name__)
 app.secret_key = "gradcafe_setup_key"
 
@@ -32,25 +30,8 @@ scraper_lock  = threading.Lock()
 db_init_state = {"running": False, "message": ""}
 db_init_lock  = threading.Lock()
 
-# =============
-# CONFIGURATION
-# =============
-CONFIG_PATH = configuration.get_configuration_filepath()
 
 
-def get_connection(config=None):
-    """Connect using saved config or provided config dict."""
-    cfg = config or load_config()
-    if not cfg:
-        raise RuntimeError("No database config found. Please run setup.")
-    return psycopg.connect(
-        host=cfg["host"],
-        user=cfg["user"],
-        password=cfg["password"],
-        dbname=cfg["dbname"]
-    )
-
- 
 # ======
 # ROUTES
 # ====== 
@@ -62,7 +43,8 @@ def index():
                            scraper=scraper_state,
                            db_init=db_init_state)
  
- 
+
+
 @app.route("/create-database", methods=["POST"])
 def create_database():
     """
@@ -83,16 +65,23 @@ def create_database():
             })
         db_init_state["running"] = True
         db_init_state["message"] = "Creating database and loading data. This may take a few minutes..."
- 
+
     def run_load():
         try:
-            load_script = os.path.join(os.path.dirname(__file__), "load_data.py")
-            subprocess.run([sys.executable, load_script], check=True)
+            # Read the data filename from userConfig.json
+            config_path = configuration.get_configuration_filepath()
+            config      = configuration.load_json(config_path)
+            filename    = config[0].get("data_file", "module_2/applicant_data.json")
+ 
+            load_data_to_database(filename)
+ 
             with db_init_lock:
                 db_init_state["message"] = "Database created! Click Update Analysis to load results."
-        except subprocess.CalledProcessError as e:
+        
+        except Exception as e:
             with db_init_lock:
                 db_init_state["message"] = f"Error creating database: {e}"
+        
         finally:
             with db_init_lock:
                 db_init_state["running"] = False
@@ -103,12 +92,14 @@ def create_database():
         "message": "Database creation started! This may take a few minutes."
     })
  
- 
+
+
 @app.route("/db-init-status")
 def db_init_status():
     return jsonify(db_init_state)
- 
- 
+
+
+
 @app.route("/pull-data", methods=["POST"])
 def pull_data():
     """Runs the web scraper in a background thread to pull new entries."""
@@ -127,7 +118,8 @@ def pull_data():
             })
         scraper_state["running"] = True
         scraper_state["message"] = "Pulling new data from Grad Café..."
- 
+
+
     def run_scraper():
         try:
             subprocess.run([sys.executable, scraper_path], check=True)
@@ -142,13 +134,15 @@ def pull_data():
  
     threading.Thread(target=run_scraper, daemon=True).start()
     return jsonify({"status": "started", "message": "Data pull started!"})
- 
- 
+
+
+
 @app.route("/scraper-status")
 def scraper_status():
     return jsonify(scraper_state)
  
  
+
 @app.route("/update-analysis")
 def update_analysis():
     with scraper_lock:
@@ -169,7 +163,9 @@ def update_analysis():
             serialisable[key] = val
  
     return jsonify({"status": "ok", "results": serialisable})
- 
+
+
+
 # ===========
 # ENTRY POINT
 # ===========

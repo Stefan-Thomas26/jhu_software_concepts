@@ -4,6 +4,7 @@ import json
 # My Packages
 
 
+
 # Load JSON FILE
 def load_json(filePath):
 
@@ -15,10 +16,13 @@ def load_json(filePath):
     return data
 
 
+# Get Config file path from local directory
 def get_configuration_filepath():
     # Stores credentials locally after first setup s
     CONFIG_PATH = os.path.join(os.path.dirname(__file__), "userConfig.json")
     return CONFIG_PATH
+
+
 
 # !!! THE USER NEEDS TO UPDATE THE userConfig.json !!!
 def load_configuration_file():
@@ -37,3 +41,6 @@ def load_configuration_file():
         return user, password, host
     
     return None
+
+
+print(os.cpu_count())

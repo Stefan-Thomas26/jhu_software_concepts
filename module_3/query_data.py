@@ -1,17 +1,22 @@
+# Python Packages
 import psycopg
+# My Packages
 import configuration
+
+
 
 # ========================================
 # Get connection to applicantdata database
 # ========================================
 def get_connection():
-    USERNAME, PASSWORD, HOST = configuration._get_credentials()
+    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
     return psycopg.connect(
         dbname="applicantdata",
         user=USERNAME,
         password=PASSWORD,
         host=HOST
     )
+
 
 
 # ===========
@@ -21,6 +26,7 @@ def run_query(cursor, sql, params=None):
     """Executes a query and returns all results."""
     cursor.execute(sql, params or ())
     return cursor.fetchall()
+
 
 
 # =========
@@ -40,6 +46,7 @@ def q1_fall2026_count(cursor):
     return count
  
  
+
 def q2_international_percent(cursor):
     """Q2: What percentage of entries are from international students?"""
     
@@ -56,6 +63,7 @@ def q2_international_percent(cursor):
     pct = result[0][0]
     print(f"Q2: Percentage international students: {pct}%")
     return pct
+ 
  
  
 def q3_average_scores(cursor):
@@ -79,6 +87,7 @@ def q3_average_scores(cursor):
     return result[0]
  
  
+
 def q4_american_fall2026_gpa(cursor):
     """Q4: Average GPA of American students in Fall 2026."""
     
@@ -95,6 +104,7 @@ def q4_american_fall2026_gpa(cursor):
     return avg
  
  
+
 def q5_fall2026_acceptance_pct(cursor):
     """Q5: What percent of Fall 2026 entries are Acceptances?"""
     
@@ -113,6 +123,7 @@ def q5_fall2026_acceptance_pct(cursor):
     print(f"Q5: Acceptance rate for Fall 2026: {pct}%")
     return pct
  
+
  
 def q6_fall2026_accepted_gpa(cursor):
     """Q6: Average GPA of Fall 2026 acceptances."""
@@ -129,6 +140,7 @@ def q6_fall2026_accepted_gpa(cursor):
     print(f"Q6: Average GPA of Fall 2026 acceptances: {avg}")
     return avg
  
+
  
 def q7_jhu_masters_cs(cursor):
     """Q7: How many entries applied to JHU for a Masters in Computer Science?"""
@@ -146,6 +158,7 @@ def q7_jhu_masters_cs(cursor):
     return count
  
  
+
 def q8_top_schools_phd_cs_2026(cursor):
     """Q8: How many 2026 acceptances from Georgetown, MIT, Stanford, or CMU for PhD CS?"""
     
@@ -170,6 +183,7 @@ def q8_top_schools_phd_cs_2026(cursor):
     return count
  
  
+
 def q9_llm_fields(cursor):
     """
     Q9: Do numbers for Q8 change using LLM generated fields?
@@ -214,6 +228,7 @@ def q9_llm_fields(cursor):
     return count
  
  
+
 def q10_phd_rejection_rate_by_year(cursor):
     """
     Q10: What is the rejection rate of PhD applicants in 2025 vs 2026?
@@ -242,7 +257,8 @@ def q10_phd_rejection_rate_by_year(cursor):
         print(f"  {row[0]}: {row[3]}% rejected ({row[2]}/{row[1]} applicants)")
     return results
  
- 
+
+
 def q11_phd_gpa_accepted_vs_rejected(cursor):
     """
     Q11: What is the average GPA of PhD students who were accepted
@@ -267,6 +283,7 @@ def q11_phd_gpa_accepted_vs_rejected(cursor):
     for row in results:
         print(f"  {row[0]}: avg GPA = {row[2]} ({row[1]} applicants with GPA reported)")
     return results
+
 
 
 # ===============
