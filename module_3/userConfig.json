@@ -3,6 +3,6 @@
         "user": "postgres",
         "password": "Thomas99!",
         "host": "localhost",
-        "dataFile": "module_2/applicant_data.json"
+        "dataFile": "module_2/llm_extended_applicant_data.json"
     }
 ]
