@@ -37,7 +37,13 @@ db_init_lock  = threading.Lock()
 # ====== 
 @app.route("/")
 def index():
-    results = query_data.run_all_queries()
+    # Gracefully handle the case where the database does not exist yet
+    try:
+        results = query_data.run_all_queries()
+    except Exception as e:
+        print(f"Could not load query results (DB may not exist yet): {e}")
+        results = None
+ 
     return render_template("index.html",
                            results=results,
                            scraper=scraper_state,
@@ -66,6 +72,7 @@ def create_database():
         db_init_state["running"] = True
         db_init_state["message"] = "Creating database and loading data. This may take a few minutes..."
 
+
     def run_load():
         try:
             # Read the data filename from userConfig.json
@@ -86,8 +93,10 @@ def create_database():
         finally:
             with db_init_lock:
                 db_init_state["running"] = False
- 
+    
+    # Running run_load() function in a thread
     threading.Thread(target=run_load, daemon=True).start()
+    
     return jsonify({
         "status":  "started",
         "message": "Database creation started! This may take a few minutes."
@@ -146,9 +155,11 @@ def pull_data():
  
             with scraper_lock:
                 scraper_state["message"] = "Data pull complete! Click Update Analysis to refresh."
+        
         except Exception as e:
             with scraper_lock:
                 scraper_state["message"] = f"Scraper error: {e}"
+        
         finally:
             with scraper_lock:
                 scraper_state["running"] = False
@@ -173,7 +184,15 @@ def update_analysis():
                 "message": "Cannot update — a background task is currently running."
             }), 409
  
-    results = query_data.run_all_queries()
+    # Gracefully handle DB not existing
+    try:
+        results = query_data.run_all_queries()
+    except Exception as e:
+        return jsonify({
+            "status":  "error",
+            "message": f"Could not run queries — database may not exist yet: {e}"
+        }), 500
+
     serialisable = {}
     for key, val in results.items():
         if val is None:
