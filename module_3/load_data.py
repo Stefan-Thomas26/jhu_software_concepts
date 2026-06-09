@@ -47,20 +47,22 @@ def create_new_database(new_database_name):
 def _create_table_sql():
     CREATE_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS applicants (
-        p_id           INTEGER PRIMARY KEY,
-        program        TEXT,
-        degreeType     TEXT,
-        datePosted     DATE,
-        status         TEXT,
-        statusDate     TEXT,
-        semester       TEXT,
-        citizenship    TEXT,
-        gpa            FLOAT,
-        gre            FLOAT,
-        gre_v          FLOAT,
-        gre_aw         FLOAT,
-        comment        TEXT,
-        url            TEXT
+        p_id                        INTEGER PRIMARY KEY,
+        program                     TEXT,
+        degreeType                  TEXT,
+        datePosted                  DATE,
+        status                      TEXT,
+        statusDate                  TEXT,
+        semester                    TEXT,
+        citizenship                 TEXT,
+        gpa                         FLOAT,
+        gre                         FLOAT,
+        gre_v                       FLOAT,
+        gre_aw                      FLOAT,
+        comment                     TEXT,
+        url                         TEXT,
+        llm_generated_program       TEXT,
+        llm_generated_university    TEXT
     );
     """
 
@@ -72,8 +74,8 @@ def _insert_sql():
     INSERT_SQL = """
     INSERT INTO applicants (
         p_id, program, degreeType, datePosted, status, statusDate, semester,
-        citizenship, gpa, gre, gre_v, gre_aw, comment, url)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        citizenship, gpa, gre, gre_v, gre_aw, comment, url, llm_generated_program, llm_generated_university )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (p_id) DO NOTHING;
     """
     
@@ -191,7 +193,7 @@ def load_into_db(applicants, databaseName):
 
 
 
-def load_data_to_database(filename=None):
+def load_data_into_database(filename=None):
     # Create new database called "applicantdata" if one does not already exist
     databaseName = "applicantdata"
     create_new_database(databaseName)
@@ -219,7 +221,7 @@ def load_data_to_database(filename=None):
 
 def main():
     # reset_database("applicantdata")
-    load_data_to_database()
+    load_data_into_database()
 
 
 if __name__ == "__main__":
