@@ -296,8 +296,8 @@ def standardize() -> Any:
         university_text = (row or {}).get("university") or ""
         program_text = (row or {}).get("program") or ""
         result = _call_llm(university_text, program_text)
-        row["llm-generated-program"] = result["standardized_program"]
-        row["llm-generated-university"] = result["standardized_university"]
+        row["llm_generated_program"] = result["standardized_program"]
+        row["llm_generated_university"] = result["standardized_university"]
         out.append(row)
 
     return jsonify({"rows": out})
@@ -309,8 +309,8 @@ def enrich_row(row):
     program_text = row.get("program", "")
     result = _call_llm(university_text, program_text)
 
-    row["llm-generated-program"] = result["standardized_program"]
-    row["llm-generated-university"] = result["standardized_university"]
+    row["llm_generated_program"] = result["standardized_program"]
+    row["llm_generated_university"] = result["standardized_university"]
 
     return row
 
@@ -338,8 +338,8 @@ def _cli_process_file(
             university_text = (row or {}).get("university") or ""
             program_text = (row or {}).get("program") or ""
             result = _call_llm(university_text, program_text)
-            row["llm-generated-program"] = result["standardized_program"]
-            row["llm-generated-university"] = result["standardized_university"]
+            row["llm_generated_program"] = result["standardized_program"]
+            row["llm_generated_university"] = result["standardized_university"]
 
             json.dump(row, sink, ensure_ascii=False)
             sink.write("\n")
