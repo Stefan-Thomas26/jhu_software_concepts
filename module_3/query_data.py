@@ -187,11 +187,8 @@ def q8_top_schools_phd_cs_2026(cursor):
 def q9_llm_fields(cursor):
     """
     Q9: Do numbers for Q8 change using LLM generated fields?
-    NOTE: llm_generated_university and llm_generated_program columns are not
-    yet in this database. This query will need to be updated once those fields
-    are added via the LLM enrichment step in load_data.py.
     """
-    
+
     # Check if LLM columns exist first
     check_sql = """
         SELECT column_name 
@@ -309,15 +306,7 @@ def run_all_queries():
         results["q6"]  = q6_fall2026_accepted_gpa(cursor)
         results["q7"]  = q7_jhu_masters_cs(cursor)
         results["q8"]  = q8_top_schools_phd_cs_2026(cursor)
-
-
-
-        # !!!!!!!!!!! STEFAN TODO NEED TO FIX LLM STUFF! !!!!!!!!!!!
-        # results["q9"]  = q9_llm_fields(cursor)
-
-
-
-
+        results["q9"]  = q9_llm_fields(cursor)
         results["q10"] = q10_phd_rejection_rate_by_year(cursor)
         results["q11"] = q11_phd_gpa_accepted_vs_rejected(cursor)
     
