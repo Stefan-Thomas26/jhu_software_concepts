@@ -189,19 +189,19 @@ def q9_llm_fields(cursor):
     Q9: Do numbers for Q8 change using LLM generated fields?
     """
 
-    # Check if LLM columns exist first
-    check_sql = """
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'applicants' 
-          AND column_name IN ('llm_generated_university', 'llm_generated_program');
-    """
-    cols = run_query(cursor, check_sql)
+    # # Check if LLM columns exist first
+    # check_sql = """
+    #     SELECT column_name 
+    #     FROM information_schema.columns 
+    #     WHERE table_name = 'applicants' 
+    #       AND column_name IN ('llm_generated_university', 'llm_generated_program');
+    # """
+    # cols = run_query(cursor, check_sql)
  
-    if len(cols) < 2:
-        print("Q9: LLM generated fields not yet in database — skipping.")
-        print("    Re-run load_data.py with LLM enrichment enabled to populate these fields.")
-        return None
+    # if len(cols) < 2:
+    #     print("Q9: LLM generated fields not yet in database — skipping.")
+    #     print("    Re-run load_data.py with LLM enrichment enabled to populate these fields.")
+    #     return None
  
     sql = """
         SELECT COUNT(*)
@@ -209,12 +209,12 @@ def q9_llm_fields(cursor):
         WHERE llm_generated_university ILIKE ANY(ARRAY[
                 '%%Georgetown%%',
                 '%%Massachusetts Institute of Technology%%',
-                '%MIT%',
-                '%Stanford%',
-                '%Carnegie Mellon%'
+                '%%MIT%%',
+                '%%Stanford%%',
+                '%%Carnegie Mellon%%'
               ])
-          AND llm_generated_program ILIKE '%Computer Science%'
-          AND degreeType ILIKE '%PhD%'
+          AND llm_generated_program ILIKE '%%Computer Science%%'
+          AND degreeType ILIKE '%%PhD%%'
           AND status     = 'Accepted'
           AND semester   LIKE '%%2026%%';
     """
