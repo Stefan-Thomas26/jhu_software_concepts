@@ -101,27 +101,6 @@ def combine_uni_program(university, program):
     return university or program or None
 
 
-# Clear database
-def reset_database(databaseName):
-    
-    # get user credentials 
-    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
-
-    # Make new connection to  database that we made
-    conn = psycopg.connect(
-    dbname      = databaseName,
-    user        = USERNAME,
-    password    = PASSWORD,
-    host        = HOST
-    )
-    
-    cursor = conn.cursor()
-    cursor.execute(f"DROP TABLE IF EXISTS {databaseName}")
-    conn.commit()
-
-    print(f"The database {databaseName} has been cleared!")
-
-
 
 def load_into_db(applicants, databaseName):
     
@@ -168,9 +147,8 @@ def load_into_db(applicants, databaseName):
             a.get("gre_aw"),
             a.get("comment"),
             a.get("url"),
-            
-            # a.get("llm_generated_program"),
-            # a.get("llm_generated_university"),
+            a.get("llm_generated_program"),
+            a.get("llm_generated_university"),
         )
 
         insertSql = _insert_sql()
@@ -203,24 +181,76 @@ def load_data_into_database(filename=None):
         try:
             config_path = configuration.get_configuration_filepath()
             config      = configuration.load_json(config_path)
-            filename    = config[0].get("dataFile", "module_2/applicant_data.json")
+            filename    = config[0].get("dataFile", "module_2/llm_extended_applicant_data.json")
         
         except Exception:
-            filename = "module_2/applicant_data.json"
+            filename = "module_2/llm_extended_applicant_data.json"
 
 
     # Find absolute path to .json file on local machine
     applicantDataFilePath = Path(filename)
-
+    print(applicantDataFilePath.resolve())
     # Load JSON file
     applicants = configuration.load_json(applicantDataFilePath.resolve())
     
     # Load applicant data into the database
     load_into_db(applicants, databaseName)
 
+# Clear database
+def reset_database(databaseName, tableName):
+    
+    # get user credentials 
+    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+
+    # Make new connection to  database that we made
+    conn = psycopg.connect(
+    dbname      = databaseName,
+    user        = USERNAME,
+    password    = PASSWORD,
+    host        = HOST
+    )
+    
+    cursor = conn.cursor()
+    cursor.execute(f"DROP TABLE IF EXISTS {tableName}")
+    conn.commit()
+
+    print(f"The table {tableName} in the {databaseName} database has been cleared!")
+
+
+
+def delete_database(databaseName):
+    
+    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+
+    conn = psycopg.connect(
+        dbname   = "postgres",
+        user     = USERNAME,
+        password = PASSWORD,
+        host     = HOST
+    )
+    conn.autocommit = True
+    cursor = conn.cursor()
+
+    # Terminate all other connections to the database first
+    cursor.execute(f"""
+        SELECT pg_terminate_backend(pid)
+        FROM pg_stat_activity
+        WHERE datname = '{databaseName}'
+          AND pid <> pg_backend_pid();
+    """)
+
+    # Now safe to drop
+    cursor.execute(f"DROP DATABASE IF EXISTS {databaseName}")
+    cursor.close()
+    conn.close()
+
+    print(f"Database {databaseName} has been deleted!")
+
+
 
 def main():
-    # reset_database("applicantdata")
+    # reset_database("applicantdata", "applicantable")
+    # delete_database("applicantdata")
     load_data_into_database()
 
 
