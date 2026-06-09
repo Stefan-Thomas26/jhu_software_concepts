@@ -7,7 +7,7 @@ from flask import Flask, render_template, jsonify, request, redirect, url_for, s
 
 # My Packages
 import query_data
-from load_data import load_data_to_database
+from load_data import load_data_into_database
 import configuration
 
 
@@ -48,9 +48,9 @@ def index():
 @app.route("/create-database", methods=["POST"])
 def create_database():
     """
-    Runs load_data.py in a background thread.
-    Creates the database and loads all applicant data from the JSON file
-    specified in userConfig.json.
+    Runs load_data_into_database() in a background thread.
+    Creates the database and loads the full initial scrape from
+    llm_extended_applicant_data.json (the permanent archive).
     """
     with db_init_lock:
         if db_init_state["running"]:
@@ -71,9 +71,10 @@ def create_database():
             # Read the data filename from userConfig.json
             config_path = configuration.get_configuration_filepath()
             config      = configuration.load_json(config_path)
-            filename    = config[0].get("data_file", "module_2/applicant_data.json")
- 
-            load_data_to_database(filename)
+            filename    = config[0].get("data_file", "module_2/llm_extended_applicant_data.json") #default is module_2/llm_extended_applicant_data.json
+
+            # Main function
+            load_data_into_database(filename)
  
             with db_init_lock:
                 db_init_state["message"] = "Database created! Click Update Analysis to load results."
@@ -91,7 +92,6 @@ def create_database():
         "status":  "started",
         "message": "Database creation started! This may take a few minutes."
     })
- 
 
 
 @app.route("/db-init-status")
@@ -102,8 +102,18 @@ def db_init_status():
 
 @app.route("/pull-data", methods=["POST"])
 def pull_data():
-    """Runs the web scraper in a background thread to pull new entries."""
+    """
+    Runs the web scraper in a background thread to pull new entries.
+    Flow:
+      1. runWebScraper.py --mode update --part both
+         a. Scrapes new entries → applicant_data.json
+         b. Runs LLM enrichment → llm_extended_applicant_data.json
+      2. Loads llm_extended_applicant_data.json into the DB
+    The full archive files (applicant_data.json, llm_extended_applicant_data.json)
+    are never touched during an update run.
+    """
     scraper_path = os.path.join(os.path.dirname(__file__), "module_2", "runWebScraper.py")
+    llm_file     = os.path.join(os.path.dirname(__file__), "module_2", "new_llm_extended_applicant_data.json")
  
     with scraper_lock:
         if scraper_state["running"]:
@@ -118,11 +128,22 @@ def pull_data():
             })
         scraper_state["running"] = True
         scraper_state["message"] = "Pulling new data from Grad Café..."
-
-
+ 
+ 
     def run_scraper():
         try:
-            subprocess.run([sys.executable, scraper_path], check=True)
+            # Step 1 — scrape new entries and run them through the LLM
+            scraper_state["message"] = "Scraping new entries from Grad Café..."
+            subprocess.run(
+                [sys.executable, scraper_path, "--mode", "update", "--part", "both"],
+                check=True
+            )
+ 
+            # Step 2 — load the LLM-enriched results into the DB
+            with scraper_lock:
+                scraper_state["message"] = "Loading enriched entries into database..."
+            load_data_into_database(llm_file)
+ 
             with scraper_lock:
                 scraper_state["message"] = "Data pull complete! Click Update Analysis to refresh."
         except Exception as e:
