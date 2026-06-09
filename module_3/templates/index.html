@@ -14,7 +14,7 @@
       <div class="header-title">
         <span class="header-eyebrow">Module 3</span>
         <h1>Grad Café<br/>Data Analysis</h1>
-        <p class="header-sub">SQL analysis of {{ "{:,}".format(results.q1 or 0) }} Fall 2026 applicants</p>
+        <p class="header-sub">SQL analysis of Grad School applicants</p>
       </div>
       <div class="header-actions">
 
@@ -136,7 +136,7 @@
     </section>
 
     <section class="section">
-      <h2 class="section-title">Q10a — PhD Rejection Rate: 2025 vs 2026</h2>
+      <h2 class="section-title">Q10 — PhD Rejection Rate: 2025 vs 2026</h2>
       <p class="section-sub">Are PhD programs becoming more or less selective year over year?</p>
       <div class="table-wrap" id="q10">
         {% if results.q10 %}
@@ -167,7 +167,7 @@
     </section>
 
     <section class="section">
-      <h2 class="section-title">Q10b — Accepted vs Rejected PhD GPA (2026)</h2>
+      <h2 class="section-title">Q11 — Accepted vs Rejected PhD GPA (2026)</h2>
       <p class="section-sub">Does GPA meaningfully differentiate outcomes for PhD applicants?</p>
       <div class="two-col" id="q11">
         {% if results.q11 %}
