@@ -2,27 +2,31 @@
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import time
 from pathlib import Path
+import sys
 import os
 import argparse
 import psycopg
 
+# Add module_3 to path so configuration.py can be found when run as subprocess
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 # My Packages
 from llm_hosting.app import enrich_row
 from webScraper import confirmRobot, scrapeData, cleanData, saveData, loadData
-from module_3 import configuration
+import configuration
 
 
 # ================
 # Define Constants
 # ================
 BASE_URL = "https://www.thegradcafe.com"
-TOTAL_PAGES = 1510
+TOTAL_PAGES = 20
 # Full scrape outputs (initial load — never overwritten after first run)
-SCRAPE_OUTPUT = "applicant_data.json"
-LLM_OUTPUT = "llm_extended_applicant_data.json"
+SCRAPE_OUTPUT = "module_2/applicant_data.json"
+LLM_OUTPUT = "module_2/llm_extended_applicant_data.json"
 # Update scrape outputs (overwritten each update run)
-NEW_SCRAPE_OUTPUT = "new_applicant_data.json"
-NEW_LLM_OUTPUT = "new_llm_extended_applicant_data.json"
+NEW_SCRAPE_OUTPUT = "module_2/new_applicant_data.json"
+NEW_LLM_OUTPUT = "module_2/new_llm_extended_applicant_data.json"
 # Leave at least 1–2 cores free for the OS.
 NUM_LLM_WORKERS = max(1, os.cpu_count() - 2)
 
