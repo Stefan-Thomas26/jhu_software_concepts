@@ -5,7 +5,8 @@ flask>=3.0.0
 psycopg[binary]>=3.3.4
 
 # Web Scraping
-urllib3>=2.0.0
+urllib
+urllib3
 beautifulsoup4>=4.12.0
 
 # Utilities
@@ -13,3 +14,5 @@ dataclasses;
 
 # Python
 python 3.14.5
+
+concurrent.futures
