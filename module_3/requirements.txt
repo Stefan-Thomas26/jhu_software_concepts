@@ -1,3 +1,15 @@
-spsycopg                 3.3.4
-psycopg-binary          3.3.4
-from pathlib import Path
+# Web Framework
+flask>=3.0.0
+
+# PostgreSQL
+psycopg[binary]>=3.3.4
+
+# Web Scraping
+urllib3>=2.0.0
+beautifulsoup4>=4.12.0
+
+# Utilities
+dataclasses;
+
+# Python
+python 3.14.5

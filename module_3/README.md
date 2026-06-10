@@ -1,6 +1,6 @@
 # Module 3 — Grad Café Data Analysis
 
-A Flask web application that scrapes graduate school application data from [thegradcafe.com](https://www.thegradcafe.com), stores it in a PostgreSQL database, and displays SQL-driven analysis results on a dynamic webpage.
+This Flask web application scrapes graduate school application data from [thegradcafe.com](https://www.thegradcafe.com), stores it in a PostgreSQL database, and displays SQL-driven analysis results on a dynamic webpage.
 
 ---
 
@@ -20,7 +20,7 @@ module_3/
 ├── static/
 │   └── style.css                     # Page styling
 └── module_2/
-    ├── runWebScraper.py              # Scraper entry point (full + update modes)
+    ├── runWebScraper.py              # Scraper entry point (full scrape & update scrape modes)
     ├── applicant_data.json           # Full initial scrape archive (raw)
     ├── llm_extended_applicant_data.json        # Full initial scrape archive (LLM-enriched)
     ├── new_applicant_data.json                 # Latest update batch (raw, overwritten each pull)
@@ -38,11 +38,9 @@ module_3/
 
 ---
 
-## Prerequisites
+## Python Dependencies
 
-- Python 3.10+
-- PostgreSQL (local install or Replit DB)
-- pip
+- See `requirements.txt` file
 
 ---
 
@@ -51,13 +49,13 @@ module_3/
 ### 1. Clone the repository and cd into module_3
 
 ```bash
-git clone <your-ssh-url>
+git clone git@github.com:Stefan-Thomas26/jhu_software_concepts.git
 cd module_3
 ```
 
 ### 2. Configure credentials
 
-Create a `userConfig.json` file in the `module_3/` directory:
+Create a `userConfig.json` file in the `module_3/` folder:
 
 ```json
 [{
@@ -72,11 +70,11 @@ Create a `userConfig.json` file in the `module_3/` directory:
 
 ## Running the Application
 
-All commands below assume you are running from the `module_3/` directory.
+All commands below assume you are running from the `module_3/` folder.
 
 ### Step 1 — Initial full scrape (first time only)
 
-You need to scrape Grad Cafe and run the data through the LLM before runnning the application. This produces files that will not be changed in the future.
+You need to scrape Grad Cafe and run the output JSON file through the LLM before runnning the application. This action produces files that will not be changed in the future.
 
 You can do this by running the following:
 
@@ -101,7 +99,7 @@ Within the `module_3/` folder, run:
 python app.py
 ```
 
-Then copy the following URL to a browser:
+Next, copy the following URL to a browser:
 
 ```
 http://192.168.0.44:8080
@@ -110,9 +108,11 @@ http://192.168.0.44:8080
 
 ### Step 3 — Create the database
 
+The webpage _should_ show empty values or zeros upon startup, assuming a database has not already been found and linked to. 
+
 Click the **Create Database** button on the webpage. This will:
 1. Create a PostgreSQL database called `applicantdata`
-2. Load all entries from `llm_extended_applicant_data.json` into it
+2. Load all entries from `module_2/llm_extended_applicant_data.json` into it
 
 ### Step 4 — View the analysis
 
@@ -124,11 +124,9 @@ Once the database is created, the page will display results for all SQL queries 
 
 Click the **Pull Data** button on the webpage. This runs a three-step background process:
 
-1. **Scrape** — scrapes Grad Café page by page, checking each entry's URL against the database. Stops as soon as a full page of already-seen entries is found. Saves new entries to `new_applicant_data.json`.
-2. **LLM enrichment** — enriches the new entries with standardised university and program names → `new_llm_extended_applicant_data.json`.
+1. **Scrape** — scrapes Grad Café page by page, checking each entry's URL against the database. Stops as soon as a full page of already-seen entries is found. Saves new entries to `module_2/new_applicant_data.json`.
+2. **Run new data through LLM** — enriches the new entries from `module_2/new_applicant_data.json` with generated university and program names. This is output to a file `module_2/new_llm_extended_applicant_data.json`.
 3. **DB load** — inserts the enriched new entries into PostgreSQL. Duplicate entries are safely skipped.
-
-The status bar shows live progress through each step. Once complete, click **↻ Update Analysis** to refresh the results.
 
 
 ---
@@ -162,38 +160,39 @@ Table name: `applicants`
 
 | # | Question |
 |---|----------|
-| Q1 | How many entries applied for Fall 2026? |
-| Q2 | What percentage of entries are international students? |
-| Q3 | Average GPA, GRE, GRE Verbal, and GRE AW across all applicants? |
-| Q4 | Average GPA of American students in Fall 2026? |
-| Q5 | What percent of Fall 2026 entries are Acceptances? |
-| Q6 | Average GPA of Fall 2026 acceptances? |
-| Q7 | How many entries applied to JHU for a Masters in Computer Science? |
-| Q8 | How many 2026 acceptances from Georgetown, MIT, Stanford, or CMU for PhD CS? |
-| Q9 | Do Q8 numbers change using LLM-generated fields? |
-| Q10 | PhD rejection rate in 2025 vs 2026? |
-| Q11 | Average GPA of accepted vs rejected PhD applicants in 2026? |
+| Q1 |How many entries do you have in your database who have applied for Fall 2026? |
+| Q2 | What percentage of entries are from international students (not American or Other) (to two decimal places)? |
+| Q3 | What is the average GPA, GRE, GRE V, GRE AW of applicants who provide these metrics? |
+| Q4 | What is their average GPA of American students in Fall 2026? |
+| Q5 | What percent of entries for Fall 2026 are Acceptances (to two decimal places)? |
+| Q6 | What is the average GPA of applicants who applied for Fall 2026 who are Acceptances? |
+| Q7 | How many entries are from applicants who applied to JHU for a masters degrees in Computer Science? |
+| Q8 | How many entries from 2026 are acceptances from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science? |
+| Q9 | Do you numbers for question 8 change if you use LLM Generated Fields (rather than your downloaded fields)? |
+| Q10 | What is the PhD rejection rate in 2025 vs 2026? |
+| Q11 | What is the average GPA of accepted vs rejected PhD applicants in 2026? |
 
 ---
 
-## Scraper CLI Reference
+## Runtime Aruguments for _runWebScraper.py_
 
-If you need to run the scraper manually from the command line, run from inside `module_2/`:
+If you need to run the scraper manually from the command line, move into `module_2/` and then run one of the following:
 
 ```bash
-# Full parallel scrape + LLM enrichment (initial load only)
+# Full parallel scrape + LLM enrichment
+# This should only be called once when generated initial scraped data files
 python runWebScraper.py --mode full --part both
 
 # Incremental update scrape + LLM enrichment (subsequent pulls)
 python runWebScraper.py --mode update --part both
 
-# Scrape only, no LLM
+# Scrape only, DO NOT run LLM
 python runWebScraper.py --mode full --part 1
 
-# LLM enrichment only, on an existing scraped file
+# Run LLM ONLY, on an existing scraped file
 python runWebScraper.py --mode full --part 2
 
-# Custom number of LLM worker processes
+# User-defined number of LLM worker processes (USE CAUTION)
 python runWebScraper.py --mode full --part both --workers 4
 ```
 
@@ -201,14 +200,18 @@ python runWebScraper.py --mode full --part both --workers 4
 
 ## Troubleshooting
 
-**Page crashes on load with "database does not exist"**
-The app handles this gracefully — the page will load with empty results and a "—" placeholder. Click **⚙ Create Database** to set it up.
+Here is a list of few ways to navigate errors you may encounter while running this app.
 
-**"other users are accessing the database" error when deleting**
-Call `delete_database("applicantdata")` from `load_data.py` directly — it terminates all active sessions before dropping.
+***ERROR: Page crashes on load with "database does not exist"***
+- The app should take care of this — the page will load with empty results and a "—" placeholder. Click **Create Database** to set up your database.
 
-**LLM column errors on insert**
-The table was created before the LLM columns were added. Drop the table and recreate the database via the **⚙ Create Database** button.
+***ERROR: "other users are accessing the database" error when deleting***
 
-**Import errors when running `runWebScraper.py` as subprocess**
-`runWebScraper.py` adds `module_3/` to `sys.path` automatically so it can find `configuration.py`. Make sure you have not moved files out of the expected directory structure.
+- Call `delete_database("applicantdata")` from `load_data.py` directly — it terminates all active sessions before dropping.
+
+***ERROR: LLM column errors on insert***
+
+- The table was created before the LLM columns were added. Drop the table and recreate the database via the **Create Database** button.
+
+***ERROR: Import errors when running `runWebScraper.py` as subprocess***
+- `runWebScraper.py` adds `module_3/` to `sys.path` automatically so it can find `configuration.py`. Be sure to not move files such that the expected file structure is broken.

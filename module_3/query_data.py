@@ -249,7 +249,7 @@ def q10_phd_rejection_rate_by_year(cursor):
     """
     results = run_query(cursor, sql)
 
-    print("\nQ10a: PhD rejection rate by year (2025 vs 2026):")
+    print("\nQ10: PhD rejection rate by year (2025 vs 2026):")
     for row in results:
         print(f"  {row[0]}: {row[3]}% rejected ({row[2]}/{row[1]} applicants)")
     return results
@@ -268,7 +268,7 @@ def q11_phd_gpa_accepted_vs_rejected(cursor):
             COUNT(*) AS total,
             ROUND(AVG(gpa)::numeric, 2) AS avg_gpa
         FROM applicants
-        WHERE degreeTYpe ILIKE '%%PhD%%'
+        WHERE degreeType ILIKE '%%PhD%%'
           AND semester LIKE '%%2026%%'
           AND status IN ('Accepted', 'Rejected')
           AND gpa IS NOT NULL
@@ -276,7 +276,7 @@ def q11_phd_gpa_accepted_vs_rejected(cursor):
         ORDER BY status;
     """
     results = run_query(cursor, sql)
-    print("\nQ10b: Average GPA of PhD applicants accepted vs rejected in 2026:")
+    print("\nQ11: Average GPA of PhD applicants accepted vs rejected in 2026:")
     for row in results:
         print(f"  {row[0]}: avg GPA = {row[2]} ({row[1]} applicants with GPA reported)")
     return results
