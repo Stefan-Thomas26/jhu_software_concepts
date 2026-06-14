@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grad Café Data Analysis</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="header-title">
+        <span class="header-eyebrow">Module 4</span>
+        <h1>Grad Café Data Analysis</h1>
+        <p class="header-sub">SQL analysis of Grad School applicants</p>
+      </div>
+      <div class="header-actions">
+
+        <!-- Status bars -->
+        <div id="db-status-bar" class="status-bar {% if db_init.running %}visible{% endif %}">
+          <span class="status-dot {% if db_init.running %}pulsing{% endif %}"></span>
+          <span id="db-status-text">{{ db_init.message }}</span>
+        </div>
+        <div id="scraper-status-bar" class="status-bar {% if scraper.running %}visible{% endif %}">
+          <span class="status-dot {% if scraper.running %}pulsing{% endif %}"></span>
+          <span id="scraper-status-text">{{ scraper.message }}</span>
+        </div>
+
+        <!-- Buttons — data-testid used by tests -->
+        <button id="btn-create" class="btn btn-create"
+                data-testid="create-database-btn"
+                onclick="createDatabase()">
+          ⚙ Create Database
+        </button>
+        <button id="btn-pull" class="btn btn-primary"
+                data-testid="pull-data-btn"
+                onclick="pullData()">
+          ⬇ Pull Data
+        </button>
+        <button id="btn-update" class="btn btn-secondary"
+                data-testid="update-analysis-btn"
+                onclick="updateAnalysis()">
+          ↻ Update Analysis
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <h2>Analysis</h2>
+
+    <!-- Q1 -->
+    <section class="card accent">
+      <div class="card-label">Q1 — Fall 2026 Entries</div>
+      <div class="card-value" id="q1">
+        Answer: {{ results.q1 if results and results.q1 is not none else "—" }}
+      </div>
+      <div class="card-desc">total applicants for Fall 2026</div>
+    </section>
+
+    <!-- Q2 -->
+    <section class="card">
+      <div class="card-label">Q2 — International Students</div>
+      <div class="card-value" id="q2">
+        Answer: {{ "%.2f"|format(results.q2|float) if results and results.q2 is not none else "—" }}%
+      </div>
+      <div class="card-desc">of all entries are international</div>
+    </section>
+
+    <!-- Q3 -->
+    <section class="section">
+      <h3 class="section-title">Q3 — Average Applicant Scores</h3>
+      <div class="scores-grid" id="q3">
+        {% if results and results.q3 %}
+        <div class="score-item">
+          <div class="score-label">GPA</div>
+          <div class="score-val">Answer: {{ results.q3[0] if results.q3[0] is not none else "N/A" }}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">GRE Quant</div>
+          <div class="score-val">Answer: {{ results.q3[1] if results.q3[1] is not none else "N/A" }}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">GRE Verbal</div>
+          <div class="score-val">Answer: {{ results.q3[2] if results.q3[2] is not none else "N/A" }}</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">GRE Writing</div>
+          <div class="score-val">Answer: {{ results.q3[3] if results.q3[3] is not none else "N/A" }}</div>
+        </div>
+        {% else %}
+        <p class="no-data">No data available</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Q4 & Q6 -->
+    <section class="section">
+      <h3 class="section-title">GPA Analysis</h3>
+      <div class="two-col">
+        <div class="info-box">
+          <div class="info-label">Q4 — Avg GPA of American Students (Fall 2026)</div>
+          <div class="info-value" id="q4">
+            Answer: {{ results.q4 if results and results.q4 is not none else "—" }}
+          </div>
+        </div>
+        <div class="info-box">
+          <div class="info-label">Q6 — Avg GPA of Fall 2026 Acceptances</div>
+          <div class="info-value" id="q6">
+            Answer: {{ results.q6 if results and results.q6 is not none else "—" }}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Q5 -->
+    <section class="card">
+      <div class="card-label">Q5 — Fall 2026 Acceptance Rate</div>
+      <div class="card-value" id="q5">
+        Answer: {{ "%.2f"|format(results.q5|float) if results and results.q5 is not none else "—" }}%
+      </div>
+      <div class="card-desc">of Fall 2026 entries were accepted</div>
+    </section>
+
+    <!-- Q7 -->
+    <section class="card">
+      <div class="card-label">Q7 — JHU Masters CS</div>
+      <div class="card-value" id="q7">
+        Answer: {{ results.q7 if results and results.q7 is not none else "—" }}
+      </div>
+      <div class="card-desc">applied to JHU for a Masters in CS</div>
+    </section>
+
+    <!-- Q8 -->
+    <section class="section">
+      <h3 class="section-title">Q8 — Top School PhD CS Acceptances (2026)</h3>
+      <div class="big-number" id="q8">
+        Answer: {{ results.q8 if results and results.q8 is not none else "—" }}
+      </div>
+    </section>
+
+    <!-- Q9 -->
+    <section class="section">
+      <h3 class="section-title">Q9 — Same Query Using LLM Generated Fields</h3>
+      <div id="q9">
+        {% if results and results.q9 is not none %}
+        <div class="big-number">Answer: {{ results.q9 }}</div>
+        {% else %}
+        <div class="info-box warning">
+          <div class="info-label">LLM fields not yet populated</div>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Q10 -->
+    <section class="section">
+      <h3 class="section-title">Q10 — PhD Rejection Rate: 2025 vs 2026</h3>
+      <div class="table-wrap" id="q10">
+        {% if results and results.q10 %}
+        <table>
+          <thead>
+            <tr>
+              <th>Term</th><th>Total</th><th>Rejections</th><th>Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in results.q10 %}
+            <tr>
+              <td>{{ row[0] }}</td>
+              <td>{{ "{:,}".format(row[1]) }}</td>
+              <td>{{ "{:,}".format(row[2]) }}</td>
+              <td><span class="pill">Answer: {{ "%.2f"|format(row[3]|float) }}%</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No data available</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Q11 -->
+    <section class="section">
+      <h3 class="section-title">Q11 — Accepted vs Rejected PhD GPA (2026)</h3>
+      <div class="two-col" id="q11">
+        {% if results and results.q11 %}
+          {% for row in results.q11 %}
+          <div class="info-box {% if row[0] == 'Accepted' %}accent-box{% endif %}">
+            <div class="info-label">{{ row[0] }}</div>
+            <div class="info-value">Answer: {{ row[2] }}</div>
+            <div class="info-sub">{{ "{:,}".format(row[1]) }} applicants reported GPA</div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <p class="no-data">No data available</p>
+        {% endif %}
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <p>Data sourced from <a href="https://www.thegradcafe.com" target="_blank">thegradcafe.com</a></p>
+  </footer>
+
+  <script>
+    function pollStatus() {
+      fetch("/scraper-status").then(r => r.json()).then(data => {
+        updateStatusBar("scraper-status-bar","scraper-status-text","btn-pull",data);
+      });
+      fetch("/db-init-status").then(r => r.json()).then(data => {
+        updateStatusBar("db-status-bar","db-status-text","btn-create",data);
+      });
+    }
+    function updateStatusBar(barId, textId, btnId, data) {
+      const bar  = document.getElementById(barId);
+      const dot  = bar.querySelector(".status-dot");
+      const text = document.getElementById(textId);
+      const btn  = document.getElementById(btnId);
+      text.textContent = data.message;
+      if (data.running) {
+        bar.classList.add("visible");
+        dot.classList.add("pulsing");
+        btn.disabled = true;
+      } else {
+        dot.classList.remove("pulsing");
+        btn.disabled = false;
+        if (data.message) bar.classList.add("visible");
+      }
+    }
+    setInterval(pollStatus, 3000);
+
+    function createDatabase() {
+      fetch("/create-database", { method: "POST" })
+        .then(r => r.json()).then(data => {
+          document.getElementById("db-status-text").textContent = data.message;
+          document.getElementById("db-status-bar").classList.add("visible");
+          if (data.status === "started") document.getElementById("btn-create").disabled = true;
+        });
+    }
+    function pullData() {
+      fetch("/pull-data", { method: "POST" })
+        .then(r => r.json()).then(data => {
+          document.getElementById("scraper-status-text").textContent = data.message;
+          document.getElementById("scraper-status-bar").classList.add("visible");
+          if (data.status === "started") document.getElementById("btn-pull").disabled = true;
+        });
+    }
+    function updateAnalysis() {
+      const btn = document.getElementById("btn-update");
+      btn.disabled = true;
+      fetch("/update-analysis")
+        .then(r => {
+          if (r.status === 409) {
+            return r.json().then(data => { alert(data.message); btn.disabled = false; });
+          }
+          return r.json().then(data => { if (data.status === "ok") window.location.reload(); });
+        });
+    }
+  </script>
+</body>
+</html>

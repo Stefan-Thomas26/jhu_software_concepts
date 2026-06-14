@@ -17,3 +17,8 @@ module_3/module_2/models/
 module_3/module_2/webScraper/__pycache__/
 module_3/module_2/llm_hosting/__pycache__/
 module_3/userConfig.json
+# Module 4
+module_4/tests/__pycache__/
+module_4/.pytest_cache/
+module_4/src/userConfig.json
+module_4/src/__pycache__/
