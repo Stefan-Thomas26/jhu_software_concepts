@@ -11,22 +11,53 @@ import decimal
 import pytest
 import psycopg
 
-# ---------------------------------------------------------------------------
+# =========================================================================
 # Make sure the src package is importable when pytest is run from module_4/
-# ---------------------------------------------------------------------------
+# =========================================================================
 SRC_DIR = os.path.join(os.path.dirname(__file__), "..", "src")
 sys.path.insert(0, os.path.abspath(SRC_DIR))
 
 import app as app_module
 
 
-# ---------------------------------------------------------------------------
+# =============================
+# Load Machine Environment file
+# =============================
+def _load_env_file():
+    """Load .env file if it exists — so users don't need to export manually."""
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    env_path = os.path.abspath(env_path)
+    
+    if not os.path.exists(env_path):
+        return
+    
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                # Skip comment line
+                continue
+            
+            if "=" in line:
+                key, val = line.split("=", 1)
+                os.environ.setdefault(key.strip(), val.strip())
+
+
+_load_env_file()  # runs immediately when conftest is loaded
+
+
+# ===================
 # DATABASE_URL helper
-# ---------------------------------------------------------------------------
+# ===================
 def _db_url():
     url = os.environ.get("DATABASE_URL")
     if not url:
-        pytest.skip("DATABASE_URL not set — skipping DB test")
+        pytest.skip(
+            "\n\nDATABASE_URL environment not set. To run DB tests:\n"
+            "  1. Copy module_4/.env.example to module_4/.env\n"
+            "  2. Fill in your PostgreSQL credentials\n"
+            "  3. Re-run pytest\n"
+        )
     return url
 
 
@@ -49,30 +80,57 @@ def _parse_db_url(url):
     return kwargs
 
 
-# ---------------------------------------------------------------------------
+# ===========================================
 # Raw psycopg connection to the test database
-# ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+# ===========================================
+@pytest.fixture(scope = "session", autouse = True)
+def ensure_test_database():
+    """
+    Creates the test database if it does not already exist.
+    Runs once per session before any other fixture.
+    Skips silently if DATABASE_URL is not set.
+    """
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        return  # DB tests will skip themselves via _db_url()
+
+    kwargs  = _parse_db_url(url)
+    dbname  = kwargs.pop("dbname")  # remove target DB from kwargs
+    
+    # Connect to the default postgres database to create our test DB
+    conn = psycopg.connect(**kwargs, dbname="postgres")
+    conn.autocommit = True
+
+    try:
+        conn.execute(f"CREATE DATABASE {dbname}")
+        print(f"\nCreated test database '{dbname}'")
+    except psycopg.errors.DuplicateDatabase:
+        print(f"\nTest database '{dbname}' already exists — skipping creation")
+    finally:
+        conn.close()
+
+@pytest.fixture(scope = "session") #fixture runs once for entire test session, not once per test
 def db_conn():
     """Session-scoped psycopg connection to the test database."""
     url    = _db_url()
     kwargs = _parse_db_url(url)
     conn   = psycopg.connect(**kwargs)
     yield conn
+    # Teardown - last thing to run
     conn.close()
 
 
-# ---------------------------------------------------------------------------
+# ================================================
 # Fresh applicants table for each DB test function
-# ---------------------------------------------------------------------------
+# ================================================
 @pytest.fixture()
 def clean_table(db_conn):
     """
     Drop and recreate the *applicants* table before each test, then drop it
-    again on teardown.  Guarantees a completely empty starting state.
+    again on teardown.  Guarantees an empty database starting state.
     """
     cur = db_conn.cursor()
-    cur.execute("DROP TABLE IF EXISTS applicants;")
+    cur.execute("DROP TABLE IF EXISTS applicants")
     cur.execute("""
         CREATE TABLE applicants (
             p_id                     INTEGER PRIMARY KEY,
@@ -94,20 +152,23 @@ def clean_table(db_conn):
         );
     """)
     db_conn.commit()
-    yield db_conn
+    yield db_conn #hand connection over to the test via 'yield'
+    # Teardown
     cur.execute("DROP TABLE IF EXISTS applicants;")
     db_conn.commit()
     cur.close()
 
 
-# ---------------------------------------------------------------------------
-# Minimal fake result set returned by QUERY_FN in Flask tests
-# ---------------------------------------------------------------------------
+# =============================================================
+# Minimal fake result set returned by QUERY_FUNC in Flask tests
+# =============================================================
 FAKE_RESULTS = {
     "q1":  42,
     "q2":  decimal.Decimal("39.28"),
-    "q3":  (decimal.Decimal("3.75"), decimal.Decimal("162.00"),
-            decimal.Decimal("155.00"), decimal.Decimal("4.00")),
+    "q3":  (decimal.Decimal("3.75"),
+            decimal.Decimal("162.00"),
+            decimal.Decimal("155.00"),
+            decimal.Decimal("4.00")),
     "q4":  decimal.Decimal("3.80"),
     "q5":  decimal.Decimal("25.50"),
     "q6":  decimal.Decimal("3.90"),
@@ -121,34 +182,34 @@ FAKE_RESULTS = {
 }
 
 
-def fake_query_fn():
+def fake_query_func():
     """Return FAKE_RESULTS without touching the database."""
     return FAKE_RESULTS
 
 
-def fake_loader_fn(filename):
-    """No-op loader — does not touch the database."""
+def fake_loader_func(filename):
+    """Do nothing loader — does not touch the database."""
     pass
 
 
-def fake_scraper_fn(scraper_path, llm_file):
-    """No-op scraper — does not launch a subprocess."""
+def fake_scraper_func(scraper_path, llm_file):
+    """Do nothing scraper — does not launch a subprocess."""
     pass
 
 
-def error_query_fn():
-    """Simulates a query failure."""
-    raise RuntimeError("DB connection refused")
+def error_query_func():
+    """Tests a query failure."""
+    raise RuntimeError("DB Query failure")
 
 
-def error_loader_fn(filename):
-    """Simulates a loader failure."""
+def error_loader_func(filename):
+    """Tests a loader failure."""
     raise RuntimeError("Loader failed")
 
 
-# ---------------------------------------------------------------------------
+# ==================
 # Flask test clients
-# ---------------------------------------------------------------------------
+# ==================
 @pytest.fixture()
 def client(request):
     """
@@ -158,9 +219,9 @@ def client(request):
     app_module._reset_state()
     flask_app = app_module.create_app({
         "TESTING":    True,
-        "QUERY_FN":   fake_query_fn,
-        "LOADER_FN":  fake_loader_fn,
-        "SCRAPER_FN": fake_scraper_fn,
+        "QUERY_FN":   fake_query_func,
+        "LOADER_FN":  fake_loader_func,
+        "SCRAPER_FN": fake_scraper_func,
     })
     with flask_app.test_client() as c:
         yield c
@@ -168,13 +229,13 @@ def client(request):
 
 @pytest.fixture()
 def client_no_db():
-    """Test client where QUERY_FN raises — simulates missing database."""
+    """Test client where QUERY_FUNC raises — simulates missing database."""
     app_module._reset_state()
     flask_app = app_module.create_app({
         "TESTING":    True,
-        "QUERY_FN":   error_query_fn,
-        "LOADER_FN":  fake_loader_fn,
-        "SCRAPER_FN": fake_scraper_fn,
+        "QUERY_FN":   error_query_func,
+        "LOADER_FN":  fake_loader_func,
+        "SCRAPER_FN": fake_scraper_func,
     })
     with flask_app.test_client() as c:
         yield c
@@ -182,13 +243,13 @@ def client_no_db():
 
 @pytest.fixture()
 def client_error_loader():
-    """Test client where LOADER_FN raises — simulates loader failure."""
+    """Test client where LOADER_FUNC raises — simulates loader failure."""
     app_module._reset_state()
     flask_app = app_module.create_app({
         "TESTING":    True,
-        "QUERY_FN":   fake_query_fn,
-        "LOADER_FN":  error_loader_fn,
-        "SCRAPER_FN": fake_scraper_fn,
+        "QUERY_FN":   fake_query_func,
+        "LOADER_FN":  error_loader_func,
+        "SCRAPER_FN": fake_scraper_func,
     })
     with flask_app.test_client() as c:
         yield c
