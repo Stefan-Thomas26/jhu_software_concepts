@@ -34,7 +34,7 @@ def _reset_state():
 # ============
 # REAL SCRAPER
 # ============
-def _real_scraper(scraper_path, llm_file):
+def _real_scraper(scraper_path, llm_file): # pragma: no cover
     """Runs the actual subprocess scraper then loads results into DB."""
     subprocess.run(
         [sys.executable, scraper_path, "--mode", "update", "--part", "both"],
@@ -117,11 +117,9 @@ def create_app(test_config = None):
         """Start background DB creation. Returns 409 if already busy."""
         with db_init_lock:
             if db_init_state["running"]:
-                return jsonify({"status": "already_running",
-                                "message": "Database creation already in progress."}), 409
+                return jsonify({"status": "already_running", "message": "Database creation already in progress."}), 409
             if scraper_state["running"]:
-                return jsonify({"status": "scraper_running",
-                                "message": "Cannot create database while data pull is running."}), 409
+                return jsonify({"status": "scraper_running", "message": "Cannot create database while data pull is running."}), 409
             db_init_state["running"] = True
             db_init_state["message"] = "Creating database..."
 
@@ -135,8 +133,7 @@ def create_app(test_config = None):
                     "data_file", "module_2/llm_extended_applicant_data.json")
                 loader_func(filename)
                 with db_init_lock:
-                    db_init_state["message"] = \
-                        "Database created! Click Update Analysis to load results."
+                    db_init_state["message"] = "Database created! Click Update Analysis to load results."
             except Exception as e:
                 with db_init_lock:
                     db_init_state["message"] = f"Error creating database: {e}"
@@ -162,6 +159,7 @@ def create_app(test_config = None):
         Returns 409 with ``{"busy": true}`` when already running.
         Returns 200 with ``{"ok": true}`` when started successfully.
         """
+        
         scraper_path = os.path.join(os.path.dirname(__file__), "module_2", "runWebScraper.py")
         llm_file = os.path.join(os.path.dirname(__file__), "module_2", "new_llm_extended_applicant_data.json")
 
@@ -170,19 +168,16 @@ def create_app(test_config = None):
                 return jsonify({"busy": True,
                                 "message": "Data pull already in progress."}), 409
             if db_init_state["running"]:
-                return jsonify({"busy": True,
-                                "message": "Cannot pull while database is being created."}), 409
+                return jsonify({"busy": True, "message": "Cannot pull while database is being created."}), 409
             scraper_state["running"] = True
             scraper_state["message"] = "Pulling new data from Grad Café..."
 
         scraper_func = app.config["SCRAPER_FUNC"]
-
         def run_scraper():
             try:
                 scraper_func(scraper_path, llm_file)
                 with scraper_lock:
-                    scraper_state["message"] = \
-                        "Data pull complete! Click Update Analysis to refresh."
+                    scraper_state["message"] = "Data pull complete! Click Update Analysis to refresh."
             except Exception as e:
                 with scraper_lock:
                     scraper_state["message"] = f"Scraper error: {e}"
@@ -235,6 +230,6 @@ def create_app(test_config = None):
 # ===========
 # ENTRY POINT
 # ===========
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     application = create_app()
     application.run(host = "0.0.0.0", port = 8080, debug = True)

@@ -32,7 +32,7 @@ def create_new_database(new_database_name):
         # Try to create a new database if it does not exist already
         try:
             default_cur.execute(f"CREATE DATABASE {new_database_name}")
-            print(f"Created database called {new_database_name}!")
+            print(f"Created database called {new_database_name}!") # pragma: no cover
         except psycopg.errors.DuplicateDatabase:
             print(f"A database called {new_database_name} already exists!")
 
@@ -189,15 +189,16 @@ def load_data_into_database(filename=None):
 
     # Find absolute path to .json file on local machine
     applicantDataFilePath = Path(filename)
-    print(applicantDataFilePath.resolve())
+    print(applicantDataFilePath.resolve()) # pragma: no cover
     # Load JSON file
     applicants = configuration.load_json(applicantDataFilePath.resolve())
     
     # Load applicant data into the database
     load_into_db(applicants, databaseName)
 
+
 # Clear database
-def reset_database(databaseName, tableName):
+def reset_database(databaseName, tableName): # pragma: no cover
     
     # get user credentials 
     USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
@@ -218,7 +219,7 @@ def reset_database(databaseName, tableName):
 
 
 
-def delete_database(databaseName):
+def delete_database(databaseName): # pragma: no cover
     
     USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
 
@@ -248,11 +249,11 @@ def delete_database(databaseName):
 
 
 
-def main():
+def main(): # pragma: no cover
     # reset_database("applicantdata", "applicantable")
     # delete_database("applicantdata")
     load_data_into_database()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     main()

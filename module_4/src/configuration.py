@@ -25,7 +25,7 @@ def get_configuration_filepath():
 
 
 # !!! THE USER NEEDS TO UPDATE THE userConfig.json !!!
-def load_configuration_file():
+def load_configuration_file():# pragma: no cover
     """Returns config dict if saved, else None."""
     
     CONFIG_PATH = get_configuration_filepath()

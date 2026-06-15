@@ -107,6 +107,12 @@ def test_analysis_graceful_when_db_missing(client_no_db):
     resp = client_no_db.get("/analysis")
     assert resp.status_code == 200
 
+@pytest.mark.web
+def test_index_graceful_when_db_missing(client_no_db):
+    """GET / still returns 200 when database is unavailable."""
+    resp = client_no_db.get("/")
+    assert resp.status_code == 200
+
 
 @pytest.mark.web
 def test_analysis_page_has_grad_cafe_text(client):

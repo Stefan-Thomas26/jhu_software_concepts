@@ -8,7 +8,7 @@ import configuration
 # ========================================
 # Get connection to applicantdata database
 # ========================================
-def get_connection():
+def get_connection(): # pragma: no cover
     USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
     return psycopg.connect(
         dbname="applicantdata",

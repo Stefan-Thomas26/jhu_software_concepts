@@ -219,9 +219,9 @@ def client(request):
     app_module._reset_state()
     flask_app = app_module.create_app({
         "TESTING":    True,
-        "QUERY_FN":   fake_query_func,
-        "LOADER_FN":  fake_loader_func,
-        "SCRAPER_FN": fake_scraper_func,
+        "QUERY_FUNC":   fake_query_func,
+        "DB_LOADER_FUNC":  fake_loader_func,
+        "SCRAPER_FUNC": fake_scraper_func,
     })
     with flask_app.test_client() as c:
         yield c
@@ -233,9 +233,9 @@ def client_no_db():
     app_module._reset_state()
     flask_app = app_module.create_app({
         "TESTING":    True,
-        "QUERY_FN":   error_query_func,
-        "LOADER_FN":  fake_loader_func,
-        "SCRAPER_FN": fake_scraper_func,
+        "QUERY_FUNC":   error_query_func,
+        "DB_LOADER_FUNC":  fake_loader_func,
+        "SCRAPER_FUNC": fake_scraper_func,
     })
     with flask_app.test_client() as c:
         yield c
@@ -247,9 +247,9 @@ def client_error_loader():
     app_module._reset_state()
     flask_app = app_module.create_app({
         "TESTING":    True,
-        "QUERY_FN":   fake_query_func,
-        "LOADER_FN":  error_loader_func,
-        "SCRAPER_FN": fake_scraper_func,
+        "QUERY_FUNC":   fake_query_func,
+        "DB_LOADER_FUNC":  error_loader_func,
+        "SCRAPER_FUNC": fake_scraper_func,
     })
     with flask_app.test_client() as c:
         yield c
