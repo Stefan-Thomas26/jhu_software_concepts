@@ -7,27 +7,27 @@ Markers: web
 """
 import pytest
 from bs4 import BeautifulSoup
-from conftest import fake_query_fn, error_query_fn
+from conftest import fake_query_func, error_query_func
 import app as app_module
 
 
-# ---------------------------------------------------------------------------
+# =======
 # Helpers
-# ---------------------------------------------------------------------------
+# =======
 def _soup(html_bytes):
     return BeautifulSoup(html_bytes, "html.parser")
 
 
-# ---------------------------------------------------------------------------
+# ====================
 # App factory / config
-# ---------------------------------------------------------------------------
+# ====================
 @pytest.mark.web
 def test_create_app_returns_flask_app():
-    """create_app() returns a Flask application instance."""
+    """Check taht create_app() returns a Flask application instance."""
     from flask import Flask
     app_module._reset_state()
     flask_app = app_module.create_app({"TESTING": True,
-                                       "QUERY_FN": fake_query_fn})
+                                       "QUERY_FUNC": fake_query_func})
     assert isinstance(flask_app, Flask)
 
 
@@ -36,7 +36,7 @@ def test_create_app_testing_flag():
     """TESTING config flag is propagated into the app."""
     app_module._reset_state()
     flask_app = app_module.create_app({"TESTING": True,
-                                       "QUERY_FN": fake_query_fn})
+                                       "QUERY_FUNC": fake_query_func})
     assert flask_app.config["TESTING"] is True
 
 
@@ -45,16 +45,16 @@ def test_required_routes_registered():
     """All required routes are registered on the application."""
     app_module._reset_state()
     flask_app = app_module.create_app({"TESTING": True,
-                                       "QUERY_FN": fake_query_fn})
+                                       "QUERY_FUNC": fake_query_func})
     rules = {r.rule for r in flask_app.url_map.iter_rules()}
-    for expected in ["/", "/analysis", "/pull-data", "/update-analysis",
+    for routes in ["/", "/analysis", "/pull-data", "/update-analysis",
                      "/create-database", "/scraper-status", "/db-init-status"]:
-        assert expected in rules, f"Route {expected!r} not found"
+        assert routes in rules, f"Route {routes!r} not found"
 
 
-# ---------------------------------------------------------------------------
+# =============
 # GET /analysis
-# ---------------------------------------------------------------------------
+# =============
 @pytest.mark.web
 def test_analysis_returns_200(client):
     """GET /analysis returns HTTP 200."""
