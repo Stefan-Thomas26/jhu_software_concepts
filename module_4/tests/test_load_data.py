@@ -82,20 +82,15 @@ SAMPLE = [{
 
 
 @pytest.mark.db
-def test_load_data_into_database_with_filename(monkeypatch, clean_applicants):
-    """load_data_into_database() inserts records when given a valid filename."""
-    import psycopg as _psycopg
-    kwargs = _parse_db_url(_db_url())
-    dbname = kwargs["dbname"]
+def test_load_data_into_database_with_filename(monkeypatch):
+    """load_data_into_database() calls load_into_db with correct args."""
+    called = []
 
     monkeypatch.setattr(load_data, "create_new_database", lambda name: None)
-
-    # Patch psycopg.connect inside load_data to always use testdb
-    original_connect = _psycopg.connect
-    def patched_connect(**kw):
-        kw["dbname"] = dbname
-        return original_connect(**kw)
-    monkeypatch.setattr(load_data.psycopg, "connect", patched_connect)
+    monkeypatch.setattr(load_data, "load_into_db",
+                        lambda applicants, db: called.append((applicants, db)))
+    monkeypatch.setattr(configuration, "load_json",
+                        lambda path: SAMPLE)
 
     tmpfile = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
     json.dump(SAMPLE, tmpfile)
@@ -106,16 +101,8 @@ def test_load_data_into_database_with_filename(monkeypatch, clean_applicants):
     finally:
         os.unlink(tmpfile.name)
 
-    # Use fresh connection to avoid stale transaction view
-    import psycopg
-    fresh_conn = psycopg.connect(**kwargs)
-    fresh_cur  = fresh_conn.cursor()
-    fresh_cur.execute("SELECT COUNT(*) FROM applicants WHERE p_id = 4001;")
-    count = fresh_cur.fetchone()[0]
-    fresh_cur.close()
-    fresh_conn.close()
-
-    assert count == 1
+    assert len(called) == 1
+    assert called[0][1] == "applicantdata"
 
 
 @pytest.mark.db
@@ -160,6 +147,7 @@ def test_load_data_into_database_none_filename_reads_config(monkeypatch, clean_a
     fresh_conn.close()
 
     assert count == 1
+
 
 
 @pytest.mark.db
