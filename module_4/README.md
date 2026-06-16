@@ -4,9 +4,7 @@ A Flask + PostgreSQL web application that scrapes graduate school application
 data from [The Grad Café](https://www.thegradcafe.com), stores it in
 PostgreSQL, and presents SQL-driven analysis via a browser UI.
 
-📖 **Documentation**: [Read the Docs](https://jhu-software-concepts.readthedocs.io)
-*(update this link after publishing)*
-
+📖 **[Documentation](https://gradcafe-analytics-stefan.readthedocs.io)**
 
 ---
 
@@ -205,7 +203,7 @@ The workflow at `.github/workflows/tests.yml`:
 
 ---
 
-## Documentation (Sphinx)
+## Sphinx Documentation
 
 Build locally:
 
