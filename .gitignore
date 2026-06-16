@@ -1,15 +1,21 @@
 #=======================
 #Folders/Files to Ignore
 #=======================
+# ========
 # Module 1
+# ========
 module_1/notes/
+# ========
 # Module 2
+# ========
 module_2/notes/
 module_2/llm_hosting-1/
 module_2/models/
 module_2/webScraper/__pycache__/
 module_2/llm_hosting/__pycache__/
+# ========
 # Module 3
+# ========
 module_3/__pycache__/
 module_3/module_2/notes/
 module_3/module_2/llm_hosting-1/
@@ -17,7 +23,9 @@ module_3/module_2/models/
 module_3/module_2/webScraper/__pycache__/
 module_3/module_2/llm_hosting/__pycache__/
 module_3/userConfig.json
+# ========
 # Module 4
+# ========
 module_4/tests/__pycache__/
 module_4/.pytest_cache/
 module_4/src/userConfig.json
