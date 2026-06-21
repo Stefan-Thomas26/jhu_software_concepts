@@ -34,3 +34,7 @@ module_4/.env
 module_4/src/module_2/llm_hosting/__pycache__/
 module_4/src/module_2/webScraper/__pycache__
 module_4/.coverage
+# ========
+# Module 5
+# ========
+module_5/module5.venv
