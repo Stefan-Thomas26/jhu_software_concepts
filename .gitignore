@@ -38,3 +38,4 @@ module_4/.coverage
 # Module 5
 # ========
 module_5/module5.venv
+module_5/.pylintrc
