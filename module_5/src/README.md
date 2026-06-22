@@ -1,248 +1,217 @@
-# Grad Café Analytics — Module 4
+# Module 3 — Grad Café Data Analysis
 
-A Flask + PostgreSQL web application that scrapes graduate school application
-data from [The Grad Café](https://www.thegradcafe.com), stores it in
-PostgreSQL, and presents SQL-driven analysis via a browser UI.
-
-📖 **[Documentation](https://gradcafe-analytics-stefan.readthedocs.io)**
+This Flask web application scrapes graduate school application data from [thegradcafe.com](https://www.thegradcafe.com), stores it in a PostgreSQL database, and displays SQL-driven analysis results on a dynamic webpage.
 
 ---
 
 ## Project Structure
 
 ```
-module_4/
-├── src/                                 # Application source code
-│   ├── app.py                           # Flask app factory + routes
-│   ├── load_data.py                     # ETL: create DB, insert applicants
-│   ├── query_data.py                    # SQL queries (q1–q11)
-│   ├── configuration.py                 # Config / credential loading
-|   └── Module_2/                        # Contains web scraper functionality
-|
+module_3/
+├── app.py                            # Flask application and routes
+├── load_data.py                      # PostgreSQL database creation and data loading
+├── query_data.py                     # SQL queries for analysis
+├── configuration.py                  # Loads credentials from userConfig.json
+├── userConfig.json                   # Local credentials (NOT committed to GitHub)
+├── requirements.txt                  # Python dependencies
+├── limitations.pdf                   # Written reflection on data limitations
 ├── templates/
-│   └── index.html                       # Jinja2 template (data-testid selectors)
-|
+│   └── index.html                    # Flask HTML template
 ├── static/
-│   └── style.css                        # Application CSS
-|
-├── tests/
-│   ├── conftest.py                      # Fixtures & DB setup
-│   ├── helpers.py                       # Fake functions & shared test data
-│   ├── test_flask_page.py               # [web] Page rendering tests
-│   ├── test_buttons.py                  # [buttons] Endpoint behavior tests
-│   ├── test_analysis_format.py          # [analysis] Labels & formatting tests
-│   ├── test_db_insert.py                # [db] Schema & insert tests
-│   ├── test_load_data.py                # [db] load_data_into_database() tests
-│   └── test_integration_end_to_end.py   # [integration] E2E flow tests
-|
-├── docs/                                # Sphinx documentation
-│   └── source/
-│       ├── conf.py
-│       ├── index.rst
-│       ├── overview.rst
-│       ├── architecture.rst
-│       ├── api_reference.rst
-│       ├── testing_guide.rst
-│       └── operational_notes.rst
-|
-├── .github/
-│   └── workflows/
-│       └── tests.yml                    # GitHub Actions CI
-|
-├── .env.example                         # Template for local environment setup
-├── pytest.ini                           # Pytest configuration
-├── requirements.txt                     # Python dependencies
-├── coverage_summary.txt                 # Pytest coverage output
-└── README.md                            # This file
+│   └── style.css                     # Page styling
+└── module_2/
+    ├── runWebScraper.py              # Scraper entry point (full scrape & update scrape modes)
+    ├── applicant_data.json           # Full initial scrape archive (raw)
+    ├── llm_extended_applicant_data.json        # Full initial scrape archive (LLM-enriched)
+    ├── new_applicant_data.json                 # Latest update batch (raw, overwritten each pull)
+    ├── new_llm_extended_applicant_data.json    # Latest update batch (LLM-enriched, overwritten each pull)
+    ├── webScraper/
+    │   ├── scrapeData.py             # HTTP requests to Grad Café
+    │   ├── cleanData.py              # HTML parsing with BeautifulSoup
+    │   ├── saveData.py               # JSON file saving with append logic
+    │   ├── loadData.py               # JSON file loading and viewing
+    │   ├── confirmRobot.py           # Checks robots.txt before scraping
+    │   └── GradApplicant.py          # Dataclass for a single applicant entry
+    └── llm_hosting/
+        └── app.py                    # LLM enrichment logic lives here
 ```
 
 ---
 
-## Prerequisites
+## Python Dependencies
 
-- Python 3.11+
-- PostgreSQL 15+
+- See `requirements.txt` file
 
 ---
 
 ## Setup
 
-### 1. Clone the repository
+### 1. Clone the repository and cd into module_3
 
 ```bash
 git clone git@github.com:Stefan-Thomas26/jhu_software_concepts.git
-cd jhu_software_concepts
+cd module_3
 ```
 
-### 2. Install dependencies
+### 2. Configure credentials
 
-```bash
-cd module_4
-pip install -r requirements.txt
-```
-
-### 3. Configure PostgreSQL credentials
-
-Create `module_4/src/userConfig.json`:
+Create a `userConfig.json` file in the `module_3/` folder:
 
 ```json
 [{
-    "user": "your_postgres_username",
-    "password": "your_postgres_password",
-    "host": "localhost",
-    "data_file": "../../module_2/llm_extended_applicant_data.json"
+    "user":      "your_postgres_username",
+    "password":  "your_postgres_password",
+    "host":      "localhost",
+    "dataFile": "module_2/llm_extended_applicant_data.json"
 }]
 ```
 
-> ⚠️ Never commit this file — it is listed in `.gitignore`
+---
 
-### 4. Run the Flask app
+## Running the Application
+
+All commands below assume you are running from the `module_3/` folder.
+
+### Step 1 — Initial full scrape (first time only)
+
+You need to scrape Grad Cafe and run the output JSON file through the LLM before runnning the application. This action produces files that will not be changed in the future.
+
+You can do this by running the following:
 
 ```bash
-python src/app.py
+cd module_2
+python runWebScraper.py --mode full --part both
+cd ..
 ```
 
-Open `http://localhost:8080` in your browser.
+This produces two archive files inside `module_2/`:
+- `applicant_data.json` — all raw scraped entries
+- `llm_extended_applicant_data.json` — LLM-enriched entries (used to load the DB)
+
+
+> These files should never be overwritten by subsequent update runs.
+
+### Step 2 — Start the Flask app
+
+Within the `module_3/` folder, run:
+
+```bash
+python app.py
+```
+
+Next, copy the following URL to a browser:
+
+```
+http://192.168.0.44:8080
+```
+
+
+### Step 3 — Create the database
+
+The webpage _should_ show empty values or zeros upon startup, assuming a database has not already been found and linked to. 
+
+Click the **Create Database** button on the webpage. This will:
+1. Create a PostgreSQL database called `applicantdata`
+2. Load all entries from `module_2/llm_extended_applicant_data.json` into it
+
+### Step 4 — View the analysis
+
+Once the database is created, the page will display results for all SQL queries automatically. Click **Update Analysis** to update the results.
 
 ---
 
-## Using the App
+## Pulling New Data
 
-The browser UI has three buttons:
+Click the **Pull Data** button on the webpage. This runs a three-step background process:
 
-| Button | What it does |
-|--------|-------------|
-| **Create Database** | Creates the PostgreSQL database and loads the archive JSON file |
-| **Pull Data** | Scrapes new entries from Grad Café and adds them to the database |
-| **Update Analysis** | Refreshes all analysis results from the database |
+1. **Scrape** — scrapes Grad Café page by page, checking each entry's URL against the database. Stops as soon as a full page of already-seen entries is found. Saves new entries to `module_2/new_applicant_data.json`.
+2. **Run new data through LLM** — enriches the new entries from `module_2/new_applicant_data.json` with generated university and program names. This is output to a file `module_2/new_llm_extended_applicant_data.json`.
+3. **DB load** — inserts the enriched new entries into PostgreSQL. Duplicate entries are safely skipped.
 
-All three buttons are non-blocking — they run in background threads and show a
-status bar while running. If a task is already running, subsequent requests
-return a 409 Busy response.
 
 ---
 
-## Running Tests
+## Database Columns
 
-### 1. Set up the test database
+Table name: `applicants`
 
-Create a `.env` file in `module_4/`:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your PostgreSQL credentials:
-
-```
-DATABASE_URL=postgresql://your_user:your_password@localhost:5432/testdb
-```
-
-The test database (`testdb`) will be created automatically on first run.
-
-### 2. Run the full suite
-
-```bash
-cd module_4
-pytest -m "web or buttons or analysis or db or integration"
-```
-
-### 3. Run individual markers
-
-```bash
-pytest -m web          # Page rendering tests
-pytest -m buttons      # Endpoint behavior tests
-pytest -m analysis     # Formatting tests
-pytest -m db           # Database tests
-pytest -m integration  # End-to-end tests
-```
-
-### 4. Run with coverage report
-
-```bash
-pytest -m "web or buttons or analysis or db or integration" --cov=src --cov-report=term-missing
-```
-
-### 5. Save coverage summary
-
-```bash
-pytest -m "web or buttons or analysis or db or integration" | tee coverage_summary.txt
-```
+| Column | Type | Description |
+|--------|------|-------------|
+| `p_id` | INTEGER | Unique identifier |
+| `program` | TEXT | University and program combined |
+| `degreeType` | TEXT | Degree type (PhD, Masters, etc.) |
+| `datePosted` | DATE | Date entry was posted |
+| `status` | TEXT | Admission status (Accepted, Rejected, etc.) |
+| `statusDate` | TEXT | Date of status decision |
+| `semester` | TEXT | Start term (e.g. Fall 2026) |
+| `citizenship` | TEXT | American, International, or Other |
+| `gpa` | FLOAT | Applicant GPA |
+| `gre` | FLOAT | GRE Quantitative score |
+| `gre_v` | FLOAT | GRE Verbal score |
+| `gre_aw` | FLOAT | GRE Analytical Writing score |
+| `comment` | TEXT | Applicant comments |
+| `url` | TEXT | Link to original Grad Café post |
+| `llm_generated_program` | TEXT | LLM-generated program name |
+| `llm_generated_university` | TEXT | LLM-generated university name |
 
 ---
 
-## Test Coverage
+## SQL Analysis Questions
 
-100% coverage across all source modules:
+| # | Question |
+|---|----------|
+| Q1 |How many entries do you have in your database who have applied for Fall 2026? |
+| Q2 | What percentage of entries are from international students (not American or Other) (to two decimal places)? |
+| Q3 | What is the average GPA, GRE, GRE V, GRE AW of applicants who provide these metrics? |
+| Q4 | What is their average GPA of American students in Fall 2026? |
+| Q5 | What percent of entries for Fall 2026 are Acceptances (to two decimal places)? |
+| Q6 | What is the average GPA of applicants who applied for Fall 2026 who are Acceptances? |
+| Q7 | How many entries are from applicants who applied to JHU for a masters degrees in Computer Science? |
+| Q8 | How many entries from 2026 are acceptances from applicants who applied to Georgetown University, MIT, Stanford University, or Carnegie Mellon University for a PhD in Computer Science? |
+| Q9 | Do you numbers for question 8 change if you use LLM Generated Fields (rather than your downloaded fields)? |
+| Q10 | What is the PhD rejection rate in 2025 vs 2026? |
+| Q11 | What is the average GPA of accepted vs rejected PhD applicants in 2026? |
 
-```
-Name                   Stmts   Miss  Cover
-------------------------------------------
-src/__init__.py            0      0   100%
-src/app.py               118      0   100%
-src/configuration.py      10      0   100%
-src/load_data.py          70      0   100%
-src/query_data.py         98      0   100%
-------------------------------------------
-TOTAL                    296      0   100%
+---
+
+## Runtime Aruguments for _runWebScraper.py_
+
+If you need to run the scraper manually from the command line, move into `module_2/` and then run one of the following:
+
+```bash
+# Full parallel scrape + LLM enrichment
+# This should only be called once when generated initial scraped data files
+python runWebScraper.py --mode full --part both
+
+# Incremental update scrape + LLM enrichment (subsequent pulls)
+python runWebScraper.py --mode update --part both
+
+# Scrape only, DO NOT run LLM
+python runWebScraper.py --mode full --part 1
+
+# Run LLM ONLY, on an existing scraped file
+python runWebScraper.py --mode full --part 2
+
+# User-defined number of LLM worker processes (USE CAUTION)
+python runWebScraper.py --mode full --part both --workers 4
 ```
 
 ---
 
+## Troubleshooting
 
-## CI / GitHub Actions
+Here is a list of few ways to navigate errors you may encounter while running this app.
 
-The workflow at `.github/workflows/tests.yml`:
+***ERROR: Page crashes on load with "database does not exist"***
+- The app should take care of this — the page will load with empty results and a "—" placeholder. Click **Create Database** to set up your database.
 
-1. Starts a PostgreSQL 15 service container
-2. Installs Python 3.11 and dependencies
-3. Runs the full pytest suite with 100% coverage enforcement
-4. Saves `coverage_summary.txt` as a build artifact
+***ERROR: "other users are accessing the database" error when deleting***
 
-[![Pytest Suite](https://github.com/Stefan-Thomas26/jhu_software_concepts/actions/workflows/tests.yml/badge.svg)](https://github.com/Stefan-Thomas26/jhu_software_concepts/actions/workflows/tests.yml)
+- Call `delete_database("applicantdata")` from `load_data.py` directly — it terminates all active sessions before dropping.
 
----
+***ERROR: LLM column errors on insert***
 
-## Sphinx Documentation
+- The table was created before the LLM columns were added. Drop the table and recreate the database via the **Create Database** button.
 
-Build locally:
-
-```bash
-cd module_4/docs
-sphinx-build -b html source build/html
-start build/html/index.html
-```
-
-Published at: **[Read the Docs](https://gradcafe-analytics-stefan.readthedocs.io)**
-
-The docs cover:
-- **Overview & Setup** — environment variables, how to run app and tests
-- **Architecture** — web, ETL, and database layers
-- **API Reference** — autodoc for all key modules
-- **Testing Guide** — markers, selectors, fixtures, test doubles
-- **Operational Notes** — busy-state policy, idempotency, troubleshooting
-
----
-
-## Environment Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string for tests | `postgresql://user:pass@localhost:5432/testdb` |
-
----
-
-## Key Design Decisions
-
-**Dependency Injection** — `create_app(test_config)` accepts injectable
-functions for the scraper, loader, and query layer. Tests pass fakes;
-production uses real functions.
-
-**Busy-State Gating** — Threading locks prevent concurrent DB mutations.
-All endpoints return 409 when a background task is running.
-
-**Idempotency** — All inserts use `ON CONFLICT (p_id) DO NOTHING`.
-Pulling the same data twice is always safe.
-
-**100% Test Coverage** — Enforced via `pytest-cov` with
-`--cov-fail-under=100` in `pytest.ini`.
+***ERROR: Import errors when running `runWebScraper.py` as subprocess***
+- `runWebScraper.py` adds `module_3/` to `sys.path` automatically so it can find `configuration.py`. Be sure to not move files such that the expected file structure is broken.

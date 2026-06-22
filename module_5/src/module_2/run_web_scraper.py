@@ -1,3 +1,6 @@
+'''Run Web Scraper - the top level file that is parallelized and will scrape GradCafe'''
+
+
 # Python Packages
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import time
@@ -11,9 +14,9 @@ import psycopg
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # My Packages
+# import configuration
 from llm_hosting.app import enrich_row
-from webScraper import confirmRobot, scrape_data, clean_data, save_data, load_data
-import configuration
+from webScraper import scrape_data, clean_data, save_data, load_data, confirm_robots
 
 
 # ================
@@ -28,20 +31,20 @@ LLM_OUTPUT = "module_2/llm_extended_applicant_data.json"
 NEW_SCRAPE_OUTPUT = "module_2/new_applicant_data.json"
 NEW_LLM_OUTPUT = "module_2/new_llm_extended_applicant_data.json"
 # Leave at least 1–2 cores free for the OS.
+NUM_SCRAPE_WORKERS = 10
 NUM_LLM_WORKERS = max(1, os.cpu_count() - 2)
 
 
 
 # ===============
-# Parallelization 
+# Parallelization
 # ===============
 def process_page(page_num):
     try:
         html_data = scrape_data.scrape_data(BASE_URL, page_num)
-        applicants = cleanData.clean_data(html_data, BASE_URL)
+        applicants = clean_data.clean_data(html_data, BASE_URL)
         print(f"Finished reading page {page_num}")
         return applicants
-    
     except Exception as e:
         print(f"Failed page {page_num}: {e}")
         return []
@@ -54,14 +57,14 @@ def process_page(page_num):
 # ================
 def get_known_urls():
     """Fetch all URLs already stored in the database. Returns empty set if DB unavailable."""
-    
+
     try:
-        USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+        username, password, host = configuration.load_configuration_file()
         conn = psycopg.connect(
             dbname   = "applicantdata",
-            user     = USERNAME,
-            password = PASSWORD,
-            host     = HOST
+            user     = username,
+            password = password,
+            host     = host
         )
         cursor = conn.cursor()
         cursor.execute("SELECT url FROM applicants;")
@@ -69,7 +72,6 @@ def get_known_urls():
         cursor.close()
         conn.close()
         print(f"Loaded {len(urls)} known URLs from DB.")
-        
         return urls
     except Exception as e:
         print(f"Could not load known URLs (DB may not exist yet): {e}")
@@ -86,12 +88,12 @@ def get_next_applicant_number():
     rows are already in the DB. Ensures p_id stays unique across runs.
     """
     try:
-        USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+        username, password, host = configuration.load_configuration_file()
         conn = psycopg.connect(
             dbname   = "applicantdata",
-            user     = USERNAME,
-            password = PASSWORD,
-            host     = HOST
+            user     = username,
+            password = password,
+            host     = host
         )
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM applicants;")
@@ -118,30 +120,28 @@ def run_scraper_full():
     """
 
     # Verify robots.txt file 
-    confirmRobot.confirm_robot(BASE_URL)
+    confirm_robots.confirm_robot(BASE_URL)
 
     # Initializations
     start = time.time()
-    allGradApplicants = []
-    numScrapeWorkers = 10
-    
+    all_grad_applicants = []
+
     # run thread pool
-    with ThreadPoolExecutor(max_workers = numScrapeWorkers) as executor:
+    with ThreadPoolExecutor(max_workers = NUM_SCRAPE_WORKERS) as executor:
         results = executor.map(process_page, range(1, TOTAL_PAGES+1))
         
         for page_applicants in results:
-            allGradApplicants.extend(page_applicants)
+            all_grad_applicants.extend(page_applicants)
 
 
-    for ii, applicant in enumerate(allGradApplicants, start=1):
+    for ii, applicant in enumerate(all_grad_applicants, start=1):
         applicant.applicantNumber = ii 
 
-    save_data.save_data(allGradApplicants, SCRAPE_OUTPUT)
-    print(f"Full scrape complete — {len(allGradApplicants)} entries saved to {SCRAPE_OUTPUT}.")
+    save_data.save_data(all_grad_applicants, SCRAPE_OUTPUT)
+    print(f"Full scrape complete — {len(all_grad_applicants)} entries saved to {SCRAPE_OUTPUT}.")
     print(f"!!! Elapsed time = {(time.time() - start)/60:.2f} minutes !!!")
     # open file
     # load_data.view_file(Path(SCRAPE_OUTPUT))
-
 
 
 # =================================================================
@@ -160,15 +160,15 @@ def run_scraper_update():
     - Saves only new entries to new_applicant_data.json.
     Use this when pulling new data into an existing database.
     """
-    
+
     # Confirm robots.txt
-    confirmRobot.confirm_robot(BASE_URL)
+    confirm_robots.confirm_robot(BASE_URL)
 
     # Load all known URLs from the DB before scraping
     known_urls       = get_known_urls()
     next_num         = get_next_applicant_number() #get number of existing entries in database
     start            = time.time()
-    allNewApplicants = []
+    all_new_applicants = []
 
     for page_num in range(1, TOTAL_PAGES + 1):
         page_applicants = process_page(page_num)
@@ -180,34 +180,29 @@ def run_scraper_update():
         new_on_page = [a for a in page_applicants if a.url not in known_urls]
 
         print(f"Page {page_num}: {len(new_on_page)}/{len(page_applicants)} new entries")
-        allNewApplicants.extend(new_on_page)
- 
+        all_new_applicants.extend(new_on_page)
+
         # Early stop — if nothing on this page was new, we've hit old data
         if len(new_on_page) == 0:
             print(f"Page {page_num} fully seen before — stopping early.")
             break
 
-    if not allNewApplicants:
+    if not all_new_applicants:
         print("No new entries found.")
         return
 
     # Assign row numbers to new entries only
-    for ii, applicant in enumerate(allNewApplicants, start = next_num):
+    for ii, applicant in enumerate(all_new_applicants, start = next_num):
         applicant.applicantNumber = ii
 
-    save_data.save_data(allNewApplicants, NEW_SCRAPE_OUTPUT)
-    print(f"Update scrape complete — {len(allNewApplicants)} new entries saved to {NEW_SCRAPE_OUTPUT}.")
+    save_data.save_data(all_new_applicants, NEW_SCRAPE_OUTPUT)
+    print(f"Update scrape complete — {len(all_new_applicants)} new entries saved to {NEW_SCRAPE_OUTPUT}.")
     print(f"!!! Elapsed time = {(time.time() - start)/60:.2f} minutes !!!")
-   
-    # open file
-    # load_data.view_file(Path(NEW_SCRAPE_OUTPUT))
-
 
 
 # ========================================
 # PART II - run applicant data through LLM
 # ========================================
-
 def run_llm(input_file = SCRAPE_OUTPUT, output_file = LLM_OUTPUT, num_workers = NUM_LLM_WORKERS):
     """
         Part II — enrich scraped rows with LLM and save to JSON.
@@ -219,22 +214,20 @@ def run_llm(input_file = SCRAPE_OUTPUT, output_file = LLM_OUTPUT, num_workers = 
     start = time.time()
 
     # Load Data using default .json file viewer on machine
-    applicantDataRows = load_data.load_data(Path(input_file).resolve())
-    print(f"Loaded {len(applicantDataRows)} rows from {input_file}")
+    applicant_data_rows = load_data.load_data(Path(input_file).resolve())
+    print(f"Loaded {len(applicant_data_rows)} rows from {input_file}")
     print(f"Running LLM enrichment with {NUM_LLM_WORKERS} worker processes...")
-
 
     # IMPORTANT: ProcessPoolExecutor must be inside if __name__ == "__main__"
     # to avoid recursive spawning on Windows/macOS
     with ProcessPoolExecutor(max_workers = num_workers) as executor:
-        enriched_rows = list(executor.map(enrich_row, applicantDataRows, chunksize=10))
+        enriched_rows = list(executor.map(enrich_row, applicant_data_rows, chunksize=10))
 
     # Save the output LLM JSON file
     save_data.save_data(enriched_rows, output_file)
     print(f"LLM enrichment done — saved to {LLM_OUTPUT}")
     print(f"!!! Total elapsed time = {(time.time() - start)/60} minutes !!!")
     # load_data.view_file(Path(outputLLMfilename))
-
 
 
 # ===========
@@ -269,24 +262,23 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-
     # Select correct input/output files based on mode
     is_update   = args.mode == "update"
-    scrape_file = NEW_SCRAPE_OUTPUT if is_update else SCRAPE_OUTPUT
-    llm_file    = NEW_LLM_OUTPUT    if is_update else LLM_OUTPUT
-    input_file  = args.input or scrape_file
- 
+    SCRAPE_FILE = NEW_SCRAPE_OUTPUT if is_update else SCRAPE_OUTPUT
+    LLM_FILE    = NEW_LLM_OUTPUT    if is_update else LLM_OUTPUT
+    input_file  = args.input or SCRAPE_FILE
+
     def run_part_1():
+        '''Function that only runs Part 1'''
         if is_update:
             run_scraper_update()
         else:
             run_scraper_full()
- 
+
     if args.part == "1":
         run_part_1()
     elif args.part == "2":
-        run_llm(input_file = input_file, output_file = llm_file, num_workers = args.workers)
+        run_llm(input_file = input_file, output_file = LLM_FILE, num_workers = args.workers)
     else:
         run_part_1()
-        run_llm(input_file = scrape_file, output_file = llm_file, num_workers = args.workers)
-
+        run_llm(input_file = SCRAPE_FILE, output_file = LLM_FILE, num_workers = args.workers)
