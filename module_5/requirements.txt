@@ -15,3 +15,6 @@ sphinx-rtd-theme>=2.0.0
 
 # Scraper dependencies (needed for autodoc)
 urllib3>=2.0.0
+
+#linting
+pylint>=4.0.0

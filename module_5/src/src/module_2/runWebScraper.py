@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # My Packages
 from llm_hosting.app import enrich_row
-from webScraper import confirmRobot, scrapeData, cleanData, saveData, loadData
+from webScraper import confirmRobot, scrape_data, clean_data, save_data, load_data
 import configuration
 
 
@@ -37,7 +37,7 @@ NUM_LLM_WORKERS = max(1, os.cpu_count() - 2)
 # ===============
 def process_page(page_num):
     try:
-        html_data = scrapeData.scrape_data(BASE_URL, page_num)
+        html_data = scrape_data.scrape_data(BASE_URL, page_num)
         applicants = cleanData.clean_data(html_data, BASE_URL)
         print(f"Finished reading page {page_num}")
         return applicants
@@ -136,11 +136,11 @@ def run_scraper_full():
     for ii, applicant in enumerate(allGradApplicants, start=1):
         applicant.applicantNumber = ii 
 
-    saveData.save_data(allGradApplicants, SCRAPE_OUTPUT)
+    save_data.save_data(allGradApplicants, SCRAPE_OUTPUT)
     print(f"Full scrape complete — {len(allGradApplicants)} entries saved to {SCRAPE_OUTPUT}.")
     print(f"!!! Elapsed time = {(time.time() - start)/60:.2f} minutes !!!")
     # open file
-    # loadData.view_file(Path(SCRAPE_OUTPUT))
+    # load_data.view_file(Path(SCRAPE_OUTPUT))
 
 
 
@@ -195,12 +195,12 @@ def run_scraper_update():
     for ii, applicant in enumerate(allNewApplicants, start = next_num):
         applicant.applicantNumber = ii
 
-    saveData.save_data(allNewApplicants, NEW_SCRAPE_OUTPUT)
+    save_data.save_data(allNewApplicants, NEW_SCRAPE_OUTPUT)
     print(f"Update scrape complete — {len(allNewApplicants)} new entries saved to {NEW_SCRAPE_OUTPUT}.")
     print(f"!!! Elapsed time = {(time.time() - start)/60:.2f} minutes !!!")
    
     # open file
-    # loadData.view_file(Path(NEW_SCRAPE_OUTPUT))
+    # load_data.view_file(Path(NEW_SCRAPE_OUTPUT))
 
 
 
@@ -219,7 +219,7 @@ def run_llm(input_file = SCRAPE_OUTPUT, output_file = LLM_OUTPUT, num_workers = 
     start = time.time()
 
     # Load Data using default .json file viewer on machine
-    applicantDataRows = loadData.load_data(Path(input_file).resolve())
+    applicantDataRows = load_data.load_data(Path(input_file).resolve())
     print(f"Loaded {len(applicantDataRows)} rows from {input_file}")
     print(f"Running LLM enrichment with {NUM_LLM_WORKERS} worker processes...")
 
@@ -230,10 +230,10 @@ def run_llm(input_file = SCRAPE_OUTPUT, output_file = LLM_OUTPUT, num_workers = 
         enriched_rows = list(executor.map(enrich_row, applicantDataRows, chunksize=10))
 
     # Save the output LLM JSON file
-    saveData.save_data(enriched_rows, output_file)
+    save_data.save_data(enriched_rows, output_file)
     print(f"LLM enrichment done — saved to {LLM_OUTPUT}")
     print(f"!!! Total elapsed time = {(time.time() - start)/60} minutes !!!")
-    # loadData.view_file(Path(outputLLMfilename))
+    # load_data.view_file(Path(outputLLMfilename))
 
 
 
