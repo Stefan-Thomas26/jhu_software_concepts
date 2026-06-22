@@ -1,51 +1,42 @@
-# Python Packages
-import psycopg
+"""Module for loading applicant data into a PostgreSQL database."""
+
 from datetime import datetime
 from pathlib import Path
-# My Packages
+
+import psycopg
+
 import configuration
 
 
+# Constants
+DATABASE_NAME = "applicantdata"
+
 
 def create_new_database(new_database_name):
-    # =========================================================================
-    # CONNECT TO PostgreSQL
-    # Insert all applicants into PostgreSQL. Skips duplicates via ON CONFLICT.
-    # =========================================================================
-    
-    # get user credentials 
-    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+    """Create a new PostgreSQL database if one does not already exist."""
+    username, password, host = configuration.load_configuration_file()
 
-    # Connect to an already-existing database in order to create a new database
-    defaultConnection = psycopg.connect(
-        dbname      = "postgres",
-        user        = USERNAME,
-        password    = PASSWORD,
-        host        = HOST
-        )
+    default_connection = psycopg.connect(
+        dbname="postgres",
+        user=username,
+        password=password,
+        host=host
+    )
+    default_connection.autocommit = True
 
-    defaultConnection.autocommit = True
-
-    # Create a new database
-    with defaultConnection.cursor() as default_cur:
-
-        # Try to create a new database if it does not exist already
+    with default_connection.cursor() as default_cur:
         try:
             default_cur.execute(f"CREATE DATABASE {new_database_name}")
-            print(f"Created database called {new_database_name}!") # pragma: no cover
+            print(f"Created database called {new_database_name}!")  # pragma: no cover
         except psycopg.errors.DuplicateDatabase:
             print(f"A database called {new_database_name} already exists!")
 
-
-    # Close default connections
-    default_cur.close()
-    defaultConnection.close()
+    default_connection.close()
 
 
-
-# Create table sql string
 def _create_table_sql():
-    CREATE_TABLE_SQL = """
+    """Return the SQL string for creating the applicants table."""
+    create_table_sql = """
     CREATE TABLE IF NOT EXISTS applicants (
         p_id                        INTEGER PRIMARY KEY,
         program                     TEXT,
@@ -65,22 +56,19 @@ def _create_table_sql():
         llm_generated_university    TEXT
     );
     """
-
-    return CREATE_TABLE_SQL
-
+    return create_table_sql
 
 
 def _insert_sql():
-    INSERT_SQL = """
+    """Return the SQL string for inserting a row into the applicants table."""
+    insert_sql = """
     INSERT INTO applicants (
         p_id, program, degreeType, datePosted, status, statusDate, semester,
         citizenship, gpa, gre, gre_v, gre_aw, comment, url, llm_generated_program, llm_generated_university )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (p_id) DO NOTHING;
     """
-    
-    return INSERT_SQL
-
+    return insert_sql
 
 
 def parse_date(date_str):
@@ -93,7 +81,6 @@ def parse_date(date_str):
         return None
 
 
-
 def combine_uni_program(university, program):
     """Combine university + program into one string as the assignment requires."""
     if university and program:
@@ -101,42 +88,31 @@ def combine_uni_program(university, program):
     return university or program or None
 
 
+def load_into_db(applicants, database_name):
+    """Insert a list of applicant dicts into the specified PostgreSQL database."""
+    username, password, host = configuration.load_configuration_file()
 
-def load_into_db(applicants, databaseName):
-    
-    # get user credentials 
-    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
-
-    # Make new connection to  database that we made
     conn = psycopg.connect(
-        dbname      = databaseName,
-        user        = USERNAME,
-        password    = PASSWORD,
-        host        = HOST
-        )
+        dbname=database_name,
+        user=username,
+        password=password,
+        host=host
+    )
     cursor = conn.cursor()
 
-
-    # ========================
-    # Create table in database      
-    # ========================
-    createTableSql = _create_table_sql()
-
-    cursor.execute(createTableSql)
+    create_table_sql = _create_table_sql()
+    cursor.execute(create_table_sql)
     conn.commit()
 
     inserted = 0
-    skipped  = 0
- 
+    skipped = 0
+
     for a in applicants:
         row = (
             a.get("applicantNumber"),
             combine_uni_program(a.get("university"), a.get("program")),
-            # a.get("university"),
-            # a.get("program"),
             a.get("degreeType"),
             parse_date(a.get("datePosted")),
-            # a.get("datePosted"),
             a.get("status"),
             a.get("statusDate"),
             a.get("semester"),
@@ -151,17 +127,16 @@ def load_into_db(applicants, databaseName):
             a.get("llm_generated_university"),
         )
 
-        insertSql = _insert_sql()
+        insert_sql = _insert_sql()
         try:
-            cursor.execute(insertSql, row)
+            cursor.execute(insert_sql, row)
             if cursor.rowcount > 0:
                 inserted += 1
             else:
                 skipped += 1
-        except Exception as e:
+        except psycopg.Error as e:
             print(f"  Insert error for p_id {a.get('applicantNumber')}: {e}")
             conn.rollback()
-            continue
 
     conn.commit()
     cursor.close()
@@ -170,90 +145,73 @@ def load_into_db(applicants, databaseName):
     print(f"Done — {inserted} inserted in table, {skipped} skipped (duplicates).")
 
 
-
 def load_data_into_database(filename=None):
-    # Create new database called "applicantdata" if one does not already exist
-    databaseName = "applicantdata"
-    create_new_database(databaseName)
-
+    """Load applicant data from a JSON file into the PostgreSQL database."""
+    create_new_database(DATABASE_NAME)
 
     if filename is None:
         try:
             config_path = configuration.get_configuration_filepath()
-            config      = configuration.load_json(config_path)
-            filename    = config[0].get("dataFile", "module_2/llm_extended_applicant_data.json")
-        
-        except Exception:
+            config = configuration.load_json(config_path)
+            filename = config[0].get("dataFile", "module_2/llm_extended_applicant_data.json")
+        except (KeyError, IndexError, FileNotFoundError):
             filename = "module_2/llm_extended_applicant_data.json"
 
+    applicant_data_file_path = Path(filename)
+    print(applicant_data_file_path.resolve())  # pragma: no cover
+    applicants = configuration.load_json(applicant_data_file_path.resolve())
 
-    # Find absolute path to .json file on local machine
-    applicantDataFilePath = Path(filename)
-    print(applicantDataFilePath.resolve()) # pragma: no cover
-    # Load JSON file
-    applicants = configuration.load_json(applicantDataFilePath.resolve())
-    
-    # Load applicant data into the database
-    load_into_db(applicants, databaseName)
+    load_into_db(applicants, DATABASE_NAME)
 
 
-# Clear database
-def reset_database(databaseName, tableName): # pragma: no cover
-    
-    # get user credentials 
-    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+def reset_database(database_name, table_name):  # pragma: no cover
+    """Drop the specified table from the given database."""
+    username, password, host = configuration.load_configuration_file()
 
-    # Make new connection to  database that we made
     conn = psycopg.connect(
-    dbname      = databaseName,
-    user        = USERNAME,
-    password    = PASSWORD,
-    host        = HOST
+        dbname=database_name,
+        user=username,
+        password=password,
+        host=host
     )
-    
     cursor = conn.cursor()
-    cursor.execute(f"DROP TABLE IF EXISTS {tableName}")
+    cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
     conn.commit()
 
-    print(f"The table {tableName} in the {databaseName} database has been cleared!")
+    print(f"The table {table_name} in the {database_name} database has been cleared!")
 
 
-
-def delete_database(databaseName): # pragma: no cover
-    
-    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
+def delete_database(database_name):  # pragma: no cover
+    """Terminate all connections and drop the specified database."""
+    username, password, host = configuration.load_configuration_file()
 
     conn = psycopg.connect(
-        dbname   = "postgres",
-        user     = USERNAME,
-        password = PASSWORD,
-        host     = HOST
+        dbname="postgres",
+        user=username,
+        password=password,
+        host=host
     )
     conn.autocommit = True
     cursor = conn.cursor()
 
-    # Terminate all other connections to the database first
     cursor.execute(f"""
         SELECT pg_terminate_backend(pid)
         FROM pg_stat_activity
-        WHERE datname = '{databaseName}'
+        WHERE datname = '{database_name}'
           AND pid <> pg_backend_pid();
     """)
 
-    # Now safe to drop
-    cursor.execute(f"DROP DATABASE IF EXISTS {databaseName}")
+    cursor.execute(f"DROP DATABASE IF EXISTS {database_name}")
     cursor.close()
     conn.close()
 
-    print(f"Database {databaseName} has been deleted!")
+    print(f"Database {database_name} has been deleted!")
 
 
-
-def main(): # pragma: no cover
-    # reset_database("applicantdata", "applicantable")
-    # delete_database("applicantdata")
+def main():  # pragma: no cover
+    """Entry point for loading data into the database."""
     load_data_into_database()
 
 
-if __name__ == "__main__": # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
     main()

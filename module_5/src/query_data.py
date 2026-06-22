@@ -1,32 +1,34 @@
-# Python Packages
-import psycopg
-# My Packages
-import configuration
+"""Module for querying and analysing grad school applicant data from PostgreSQL."""
 
+import psycopg
+
+import configuration
 
 
 # ========================================
 # Get connection to applicantdata database
 # ========================================
-def get_connection(): # pragma: no cover
-    USERNAME, PASSWORD, HOST = configuration.load_configuration_file()
-    return psycopg.connect(
-        dbname="applicantdata",
-        user=USERNAME,
-        password=PASSWORD,
-        host=HOST
-    )
+DB_NAME = "applicantdata"
 
+
+def get_connection():  # pragma: no cover
+    """Return a psycopg connection to the applicantdata database."""
+    username, password, host = configuration.load_configuration_file()
+    return psycopg.connect(
+        dbname=DB_NAME,
+        user=username,
+        password=password,
+        host=host
+    )
 
 
 # ===========
 # Run a query
 # ===========
 def run_query(cursor, sql, params=None):
-    """Executes a query and returns all results."""
+    """Execute a query and return all results."""
     cursor.execute(sql, params or ())
     return cursor.fetchall()
-
 
 
 # =========
@@ -34,7 +36,6 @@ def run_query(cursor, sql, params=None):
 # =========
 def q1_fall2026_count(cursor):
     """Q1: How many entries applied for Fall 2026?"""
-    
     sql = """
         SELECT COUNT(*)
         FROM applicants
@@ -44,12 +45,10 @@ def q1_fall2026_count(cursor):
     count = result[0][0]
     print(f"Q1: Entries for Fall 2026: {count}")
     return count
- 
- 
+
 
 def q2_international_percent(cursor):
     """Q2: What percentage of entries are from international students?"""
-    
     sql = """
         SELECT
             ROUND(
@@ -63,12 +62,10 @@ def q2_international_percent(cursor):
     pct = result[0][0]
     print(f"Q2: Percentage international students: {pct}%")
     return pct
- 
- 
- 
+
+
 def q3_average_scores(cursor):
     """Q3: Average GPA, GRE, GRE_V, GRE_AW of applicants who provided these metrics."""
-    
     sql = """
         SELECT
             ROUND(AVG(gpa)::numeric,   2) AS avg_gpa,
@@ -85,12 +82,10 @@ def q3_average_scores(cursor):
     avg_gpa, avg_gre, avg_gre_v, avg_gre_aw = result[0]
     print(f"Q3: Avg GPA: {avg_gpa}, Avg GRE: {avg_gre}, Avg GRE_V: {avg_gre_v}, Avg GRE_AW: {avg_gre_aw}")
     return result[0]
- 
- 
+
 
 def q4_american_fall2026_gpa(cursor):
     """Q4: Average GPA of American students in Fall 2026."""
-    
     sql = """
         SELECT ROUND(AVG(gpa)::numeric, 2)
         FROM applicants
@@ -102,12 +97,10 @@ def q4_american_fall2026_gpa(cursor):
     avg = result[0][0]
     print(f"Q4: Average GPA of American students in Fall 2026: {avg}")
     return avg
- 
- 
+
 
 def q5_fall2026_acceptance_pct(cursor):
     """Q5: What percent of Fall 2026 entries are Acceptances?"""
-    
     sql = """
         SELECT
             ROUND(
@@ -122,12 +115,10 @@ def q5_fall2026_acceptance_pct(cursor):
     pct = result[0][0]
     print(f"Q5: Acceptance rate for Fall 2026: {pct}%")
     return pct
- 
 
- 
+
 def q6_fall2026_accepted_gpa(cursor):
     """Q6: Average GPA of Fall 2026 acceptances."""
-    
     sql = """
         SELECT ROUND(AVG(gpa)::numeric, 2)
         FROM applicants
@@ -139,12 +130,10 @@ def q6_fall2026_accepted_gpa(cursor):
     avg = result[0][0]
     print(f"Q6: Average GPA of Fall 2026 acceptances: {avg}")
     return avg
- 
 
- 
+
 def q7_jhu_masters_cs(cursor):
     """Q7: How many entries applied to JHU for a Masters in Computer Science?"""
-    
     sql = """
         SELECT COUNT(*)
         FROM applicants
@@ -156,12 +145,10 @@ def q7_jhu_masters_cs(cursor):
     count = result[0][0]
     print(f"Q7: JHU Masters CS applicants: {count}")
     return count
- 
- 
+
 
 def q8_top_schools_phd_cs_2026(cursor):
     """Q8: How many 2026 acceptances from Georgetown, MIT, Stanford, or CMU for PhD CS?"""
-    
     sql = """
         SELECT COUNT(*)
         FROM applicants
@@ -179,30 +166,12 @@ def q8_top_schools_phd_cs_2026(cursor):
     """
     result = run_query(cursor, sql)
     count = result[0][0]
-    print(f"Q8: # Acceptances from  Georgetown, MIT, Stanford, or CMU for PhD CS in 2026: {count}")
+    print(f"Q8: # Acceptances from Georgetown, MIT, Stanford, or CMU for PhD CS in 2026: {count}")
     return count
- 
- 
+
 
 def q9_llm_fields(cursor):
-    """
-    Q9: Do numbers for Q8 change using LLM generated fields?
-    """
-
-    # # Check if LLM columns exist first
-    # check_sql = """
-    #     SELECT column_name 
-    #     FROM information_schema.columns 
-    #     WHERE table_name = 'applicants' 
-    #       AND column_name IN ('llm_generated_university', 'llm_generated_program');
-    # """
-    # cols = run_query(cursor, check_sql)
- 
-    # if len(cols) < 2:
-    #     print("Q9: LLM generated fields not yet in database — skipping.")
-    #     print("    Re-run load_data.py with LLM enrichment enabled to populate these fields.")
-    #     return None
- 
+    """Q9: Do numbers for Q8 change using LLM generated fields?"""
     sql = """
         SELECT COUNT(*)
         FROM applicants
@@ -220,18 +189,12 @@ def q9_llm_fields(cursor):
     """
     result = run_query(cursor, sql)
     count = result[0][0]
-
     print(f"Q9: Top school PhD CS 2026 acceptances (LLM fields): {count}")
     return count
- 
- 
+
 
 def q10_phd_rejection_rate_by_year(cursor):
-    """
-    Q10: What is the rejection rate of PhD applicants in 2025 vs 2026?
-    Curious whether PhD rejection rates have changed year over year.
-    """
-    
+    """Q10: What is the rejection rate of PhD applicants in 2025 vs 2026?"""
     sql = """
         SELECT
             semester,
@@ -248,20 +211,14 @@ def q10_phd_rejection_rate_by_year(cursor):
         ORDER BY semester DESC;
     """
     results = run_query(cursor, sql)
-
     print("\nQ10: PhD rejection rate by year (2025 vs 2026):")
     for row in results:
         print(f"  {row[0]}: {row[3]}% rejected ({row[2]}/{row[1]} applicants)")
     return results
- 
 
 
 def q11_phd_gpa_accepted_vs_rejected(cursor):
-    """
-    Q11: What is the average GPA of PhD students who were accepted
-    vs rejected in 2026? Curious whether GPA is a strong differentiator.
-    """
-    
+    """Q11: Average GPA of PhD students accepted vs rejected in 2026."""
     sql = """
         SELECT
             status,
@@ -282,40 +239,38 @@ def q11_phd_gpa_accepted_vs_rejected(cursor):
     return results
 
 
-
 # ===============
 # Run all queries
 # ===============
 def run_all_queries():
     """Run all queries and return results as a dictionary."""
-    
-    conn   = get_connection()
+    conn = get_connection()
     cursor = conn.cursor()
     results = {}
 
     print("=" * 60)
     print("GRAD CAFÉ DATA ANALYSIS")
     print("=" * 60)
- 
+
     try:
-        results["q1"]  = q1_fall2026_count(cursor)
-        results["q2"]  = q2_international_percent(cursor)
-        results["q3"]  = q3_average_scores(cursor)
-        results["q4"]  = q4_american_fall2026_gpa(cursor)
-        results["q5"]  = q5_fall2026_acceptance_pct(cursor)
-        results["q6"]  = q6_fall2026_accepted_gpa(cursor)
-        results["q7"]  = q7_jhu_masters_cs(cursor)
-        results["q8"]  = q8_top_schools_phd_cs_2026(cursor)
-        results["q9"]  = q9_llm_fields(cursor)
+        results["q1"] = q1_fall2026_count(cursor)
+        results["q2"] = q2_international_percent(cursor)
+        results["q3"] = q3_average_scores(cursor)
+        results["q4"] = q4_american_fall2026_gpa(cursor)
+        results["q5"] = q5_fall2026_acceptance_pct(cursor)
+        results["q6"] = q6_fall2026_accepted_gpa(cursor)
+        results["q7"] = q7_jhu_masters_cs(cursor)
+        results["q8"] = q8_top_schools_phd_cs_2026(cursor)
+        results["q9"] = q9_llm_fields(cursor)
         results["q10"] = q10_phd_rejection_rate_by_year(cursor)
         results["q11"] = q11_phd_gpa_accepted_vs_rejected(cursor)
-    
-    except Exception as e:
+
+    except psycopg.Error as e:
         print(f"Query error: {e}")
         print("=" * 60)
-    
+
     finally:
         cursor.close()
         conn.close()
- 
+
     return results

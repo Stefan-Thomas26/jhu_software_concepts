@@ -1,24 +1,25 @@
-# Python Packages
+"""Flask application factory and route definitions for the GradCafe analysis app."""
+
+import os
 import subprocess
 import sys
-import os
 import threading
-from flask import Flask, render_template, jsonify
 
-# My Packages
+from flask import Flask, jsonify, render_template
+
+import configuration
 import query_data
 from load_data import load_data_into_database
-import configuration
 
 
 # ============
 # SHARED STATE
 # ============
 scraper_state = {"running": False, "message": ""}
-scraper_lock  = threading.Lock()
+scraper_lock = threading.Lock()
 
 db_init_state = {"running": False, "message": ""}
-db_init_lock  = threading.Lock()
+db_init_lock = threading.Lock()
 
 
 def _reset_state():
@@ -34,8 +35,8 @@ def _reset_state():
 # ============
 # REAL SCRAPER
 # ============
-def _real_scraper(scraper_path, llm_file): # pragma: no cover
-    """Runs the actual subprocess scraper then loads results into DB."""
+def _real_scraper(scraper_path, llm_file):  # pragma: no cover
+    """Run the actual subprocess scraper then load results into DB."""
     subprocess.run(
         [sys.executable, scraper_path, "--mode", "update", "--part", "both"],
         check=True
@@ -46,7 +47,7 @@ def _real_scraper(scraper_path, llm_file): # pragma: no cover
 # ===========
 # APP FACTORY
 # ===========
-def create_app(test_config = None):
+def create_app(test_config=None):  # pylint: disable=too-many-statements
     """
     Flask application factory.
 
@@ -55,30 +56,28 @@ def create_app(test_config = None):
     test_config : dict, optional
         Overrides applied to ``app.config`` during testing.
 
-        * ``TESTING``    : set ``True`` for Flask test mode.
+        * ``TESTING``      : set ``True`` for Flask test mode.
         * ``SCRAPER_FUNC`` : callable ``(path, llm_file) -> None``.
-        * ``DB_LOADER_FUNC``  : callable ``(filename) -> None``.
+        * ``DB_LOADER_FUNC`` : callable ``(filename) -> None``.
         * ``QUERY_FUNC``   : callable ``() -> dict``.
 
     Returns
     -------
     flask.Flask
     """
-
     templates_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
-    static_dir    = os.path.join(os.path.dirname(__file__), "..", "static")
+    static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
     app = Flask(__name__,
-                template_folder = os.path.abspath(templates_dir),
+                template_folder=os.path.abspath(templates_dir),
                 static_folder=os.path.abspath(static_dir))
     app.secret_key = "gradcafe_setup_key"
 
-    # Store Default function in the App Configurations
-    # Can pass other testing functions as an input argument to create_app
+    # Store default functions in app config
+    # Can be overridden by passing test_config to create_app
     app.config["SCRAPER_FUNC"] = _real_scraper
-    app.config["DB_LOADER_FUNC"]  = load_data_into_database
-    app.config["QUERY_FUNC"]   = query_data.run_all_queries
+    app.config["DB_LOADER_FUNC"] = load_data_into_database
+    app.config["QUERY_FUNC"] = query_data.run_all_queries
 
-    # If function argument is passed
     if test_config:
         app.config.update(test_config)
 
@@ -87,23 +86,23 @@ def create_app(test_config = None):
     # --------
     @app.route("/")
     def index():
-        try:
+        """Render the main index page with current query results."""
+        try:  # pylint: disable=broad-exception-caught
             results = app.config["QUERY_FUNC"]()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"Could not load query results: {e}")
             results = None
         return render_template("index.html",
                                results=results,
                                scraper=scraper_state,
                                db_init=db_init_state)
-
 
     @app.route("/analysis")
     def analysis():
         """Main analysis page."""
         try:
             results = app.config["QUERY_FUNC"]()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"Could not load query results: {e}")
             results = None
         return render_template("index.html",
@@ -111,15 +110,16 @@ def create_app(test_config = None):
                                scraper=scraper_state,
                                db_init=db_init_state)
 
-
     @app.route("/create-database", methods=["POST"])
     def create_database():
         """Start background DB creation. Returns 409 if already busy."""
         with db_init_lock:
             if db_init_state["running"]:
-                return jsonify({"status": "already_running", "message": "Database creation already in progress."}), 409
+                return jsonify({"status": "already_running",
+                                "message": "Database creation already in progress."}), 409
             if scraper_state["running"]:
-                return jsonify({"status": "scraper_running", "message": "Cannot create database while data pull is running."}), 409
+                return jsonify({"status": "scraper_running",
+                                "message": "Cannot create database while data pull is running."}), 409
             db_init_state["running"] = True
             db_init_state["message"] = "Creating database..."
 
@@ -128,30 +128,29 @@ def create_app(test_config = None):
         def run_load():
             try:
                 config_path = configuration.get_configuration_filepath()
-                config      = configuration.load_json(config_path)
-                filename    = config[0].get(
+                config = configuration.load_json(config_path)
+                filename = config[0].get(
                     "data_file", "module_2/llm_extended_applicant_data.json")
                 loader_func(filename)
                 with db_init_lock:
                     db_init_state["message"] = "Database created! Click Update Analysis to load results."
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 with db_init_lock:
                     db_init_state["message"] = f"Error creating database: {e}"
             finally:
                 with db_init_lock:
                     db_init_state["running"] = False
 
-        threading.Thread(target = run_load, daemon = True).start()
+        threading.Thread(target=run_load, daemon=True).start()
         return jsonify({"status": "started",
                         "message": "Database creation started!"}), 200
 
-
     @app.route("/db-init-status")
     def db_init_status():
+        """Return current database initialisation state as JSON."""
         return jsonify(db_init_state)
 
-
-    @app.route("/pull-data", methods = ["POST"])
+    @app.route("/pull-data", methods=["POST"])
     def pull_data():
         """
         Start background scrape + load.
@@ -159,43 +158,44 @@ def create_app(test_config = None):
         Returns 409 with ``{"busy": true}`` when already running.
         Returns 200 with ``{"ok": true}`` when started successfully.
         """
-        
         scraper_path = os.path.join(os.path.dirname(__file__), "module_2", "runWebScraper.py")
-        llm_file = os.path.join(os.path.dirname(__file__), "module_2", "new_llm_extended_applicant_data.json")
+        llm_file = os.path.join(
+            os.path.dirname(__file__), "module_2", "new_llm_extended_applicant_data.json")
 
         with scraper_lock:
             if scraper_state["running"]:
                 return jsonify({"busy": True,
                                 "message": "Data pull already in progress."}), 409
             if db_init_state["running"]:
-                return jsonify({"busy": True, "message": "Cannot pull while database is being created."}), 409
+                return jsonify({"busy": True,
+                                "message": "Cannot pull while database is being created."}), 409
             scraper_state["running"] = True
             scraper_state["message"] = "Pulling new data from Grad Café..."
 
         scraper_func = app.config["SCRAPER_FUNC"]
+
         def run_scraper():
             try:
                 scraper_func(scraper_path, llm_file)
                 with scraper_lock:
                     scraper_state["message"] = "Data pull complete! Click Update Analysis to refresh."
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 with scraper_lock:
                     scraper_state["message"] = f"Scraper error: {e}"
             finally:
                 with scraper_lock:
                     scraper_state["running"] = False
 
-        threading.Thread(target = run_scraper, daemon = True).start()
+        threading.Thread(target=run_scraper, daemon=True).start()
         return jsonify({"ok": True, "status": "started",
                         "message": "Data pull started!"}), 200
 
-
     @app.route("/scraper-status")
     def scraper_status():
+        """Return current scraper state as JSON."""
         return jsonify(scraper_state)
 
-
-    @app.route("/update-analysis", methods = ["GET", "POST"])
+    @app.route("/update-analysis", methods=["GET", "POST"])
     def update_analysis():
         """
         Re-run all queries and return JSON results.
@@ -209,7 +209,7 @@ def create_app(test_config = None):
 
         try:
             results = app.config["QUERY_FUNC"]()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return jsonify({"status": "error",
                             "message": f"Query error: {e}"}), 500
 
@@ -230,6 +230,6 @@ def create_app(test_config = None):
 # ===========
 # ENTRY POINT
 # ===========
-if __name__ == "__main__": # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
     application = create_app()
-    application.run(host = "0.0.0.0", port = 8080, debug = True)
+    application.run(host="0.0.0.0", port=8080, debug=True)

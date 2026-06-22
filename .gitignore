@@ -39,3 +39,4 @@ module_4/.coverage
 # ========
 module_5/module5.venv
 module_5/.pylintrc
+module_5/src/__pycache__
