@@ -26,7 +26,6 @@ MODEL_FILE = os.getenv(
     "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
 )
 
-# N_THREADS = int(os.getenv("N_THREADS", str(os.cpu_count() or 2)))
 N_THREADS = int(4)
 N_CTX = int(os.getenv("N_CTX", "2048"))
 N_GPU_LAYERS = int(os.getenv("N_GPU_LAYERS", "0"))  # 0 → CPU-only
@@ -59,7 +58,6 @@ ABBREV_UNI: Dict[str, str] = {
 COMMON_UNI_FIXES: Dict[str, str] = {
     "McGiill University": "McGill University",
     "Mcgill University": "McGill University",
-    # Normalize 'Of' → 'of'
     "University Of British Columbia": "University of British Columbia",
 }
 
@@ -99,7 +97,6 @@ FEW_SHOTS: List[Tuple[Dict[str, str], Dict[str, str]]] = [
             "standardized_program": "Information Studies",
         },
     ),
-    
     (
         {"university": "McG", "program": "Information"},
         {
@@ -107,7 +104,6 @@ FEW_SHOTS: List[Tuple[Dict[str, str], Dict[str, str]]] = [
             "standardized_program": "Information Studies",
         },
     ),
-    
     (
         {"university": "University Of British Columbia", "program": "Mathematics"},
         {
@@ -115,7 +111,6 @@ FEW_SHOTS: List[Tuple[Dict[str, str], Dict[str, str]]] = [
             "standardized_program": "Mathematics",
         },
     ),
-    
     (
         {"university": "Harvard", "program": "Computer Science"},
         {
@@ -123,7 +118,6 @@ FEW_SHOTS: List[Tuple[Dict[str, str], Dict[str, str]]] = [
             "standardized_program": "Computer Science",
         },
     ),
-    
 ]
 
 _LLM: Llama | None = None
@@ -131,7 +125,7 @@ _LLM: Llama | None = None
 
 def _load_llm() -> Llama:
     """Download (or reuse) the GGUF file and initialize llama.cpp."""
-    global _LLM
+    global _LLM  # pylint: disable=global-statement
     if _LLM is not None:
         return _LLM
 
@@ -221,7 +215,6 @@ def _post_normalize_university(uni: str) -> str:
     return match or u or "Unknown"
 
 
-
 def _call_llm(university_text: str, program_text: str) -> Dict[str, str]:
     """Query the tiny LLM and return standardized fields."""
     llm = _load_llm()
@@ -240,7 +233,10 @@ def _call_llm(university_text: str, program_text: str) -> Dict[str, str]:
     messages.append(
         {
             "role": "user",
-            "content": json.dumps({"university": university_text, "program": program_text}, ensure_ascii=False),
+            "content": json.dumps(
+                {"university": university_text, "program": program_text},
+                ensure_ascii=False
+            ),
         }
     )
 
@@ -257,7 +253,7 @@ def _call_llm(university_text: str, program_text: str) -> Dict[str, str]:
         obj = json.loads(match.group(0) if match else text)
         std_prog = str(obj.get("standardized_program", "")).strip()
         std_uni = str(obj.get("standardized_university", "")).strip()
-    except Exception:
+    except (json.JSONDecodeError, AttributeError):
         std_prog, std_uni = _split_fallback(program_text)
 
     std_prog = _post_normalize_program(std_prog)
@@ -283,8 +279,6 @@ def health() -> Any:
     return jsonify({"ok": True})
 
 
-
-
 @app.post("/standardize")
 def standardize() -> Any:
     """Standardize rows from an HTTP request and return JSON."""
@@ -303,8 +297,8 @@ def standardize() -> Any:
     return jsonify({"rows": out})
 
 
-# New function for parallelization
-def enrich_row(row):
+def enrich_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Enrich a single applicant row with LLM-standardized program and university fields."""
     university_text = (row or {}).get("university") or ""
     program_text = row.get("program", "")
     result = _call_llm(university_text, program_text)
@@ -325,28 +319,27 @@ def _cli_process_file(
     with open(in_path, "r", encoding="utf-8") as f:
         rows = _normalize_input(json.load(f))
 
-    sink = sys.stdout if to_stdout else None
-    if not to_stdout:
+    if to_stdout:
+        _write_rows(rows, sys.stdout)
+    else:
         out_path = out_path or (in_path + ".jsonl")
         mode = "a" if append else "w"
-        sink = open(out_path, mode, encoding="utf-8")
+        with open(out_path, mode, encoding="utf-8") as sink:
+            _write_rows(rows, sink)
 
-    assert sink is not None  # for type-checkers
 
-    try:
-        for row in rows:
-            university_text = (row or {}).get("university") or ""
-            program_text = (row or {}).get("program") or ""
-            result = _call_llm(university_text, program_text)
-            row["llm_generated_program"] = result["standardized_program"]
-            row["llm_generated_university"] = result["standardized_university"]
+def _write_rows(rows: List[Dict[str, Any]], sink: Any) -> None:
+    """Enrich and write each row to the given file-like sink."""
+    for row in rows:
+        university_text = (row or {}).get("university") or ""
+        program_text = (row or {}).get("program") or ""
+        result = _call_llm(university_text, program_text)
+        row["llm_generated_program"] = result["standardized_program"]
+        row["llm_generated_university"] = result["standardized_university"]
 
-            json.dump(row, sink, ensure_ascii=False)
-            sink.write("\n")
-            sink.flush()
-    finally:
-        if sink is not sys.stdout:
-            sink.close()
+        json.dump(row, sink, ensure_ascii=False)
+        sink.write("\n")
+        sink.flush()
 
 
 if __name__ == "__main__":
