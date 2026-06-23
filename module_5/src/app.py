@@ -155,9 +155,9 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
         Returns 409 with ``{"busy": true}`` when already running.
         Returns 200 with ``{"ok": true}`` when started successfully.
         """
-        scraper_path = os.path.join(os.path.dirname(__file__), "module_2", "runWebScraper.py")
+        scraper_path = os.path.join(os.path.dirname(__file__), "web_scraper", "run_web_scraper.py")
         llm_file = os.path.join(
-            os.path.dirname(__file__), "module_2", "new_llm_extended_applicant_data.json")
+            os.path.dirname(__file__), "web_scraper", "new_llm_extended_applicant_data.json")
 
         with scraper_lock:
             if scraper_state["running"]:
@@ -208,7 +208,7 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
             results = app.config["QUERY_FUNC"]()
         except Exception as e:  # pylint: disable=broad-exception-caught
             return jsonify({"status": "error",
-                            "message": f"Query error: {e}"}), 500
+                            "message": "An error occurred processing your request."}), 500
 
         serialisable = {}
         for key, val in results.items():
@@ -229,4 +229,4 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
 # ===========
 if __name__ == "__main__":  # pragma: no cover
     application = create_app()
-    application.run(host="0.0.0.0", port=8080, debug=True)
+    application.run(host="0.0.0.0", port=8080, debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true")

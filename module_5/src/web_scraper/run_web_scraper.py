@@ -11,7 +11,8 @@ from pathlib import Path
 import psycopg
 
 # Add parent directory to path so configuration.py can be found when run as subprocess
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))  # web_scraper/ first
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), ".."))  # src/ second
 
 # My Packages
 from llm_hosting.app import enrich_row
@@ -28,12 +29,13 @@ import configuration
 # ================
 BASE_URL = "https://www.thegradcafe.com"
 TOTAL_PAGES = 20
+_HERE = os.path.dirname(os.path.abspath(__file__))
 # Full scrape outputs (initial load — never overwritten after first run)
-SCRAPE_OUTPUT = "module_2/applicant_data.json"
-LLM_OUTPUT = "module_2/llm_extended_applicant_data.json"
+SCRAPE_OUTPUT = os.path.join(_HERE, "applicant_data.json")
+LLM_OUTPUT = os.path.join(_HERE, "llm_extended_applicant_data.json")
 # Update scrape outputs (overwritten each update run)
-NEW_SCRAPE_OUTPUT = "module_2/new_applicant_data.json"
-NEW_LLM_OUTPUT = "module_2/new_llm_extended_applicant_data.json"
+NEW_SCRAPE_OUTPUT = os.path.join(_HERE, "new_applicant_data.json")
+NEW_LLM_OUTPUT = os.path.join(_HERE, "new_llm_extended_applicant_data.json")
 # Leave at least 1–2 cores free for the OS
 NUM_SCRAPE_WORKERS = 10
 NUM_LLM_WORKERS = max(1, os.cpu_count() - 2)
