@@ -5,7 +5,7 @@ from urllib import parse
 
 from bs4 import BeautifulSoup
 
-from . import grad_applicant
+import grad_applicant
 
 
 # ===================================

@@ -1,11 +1,10 @@
 """Flask application factory and route definitions for the GradCafe analysis app."""
-from dotenv import load_dotenv
-load_dotenv()
-
 import os
 import subprocess
 import sys
 import threading
+from dotenv import load_dotenv
+load_dotenv()
 
 from flask import Flask, jsonify, render_template
 

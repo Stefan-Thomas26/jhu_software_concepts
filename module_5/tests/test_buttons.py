@@ -139,8 +139,7 @@ def test_create_database_success_message_set(monkeypatch):
     import configuration
     finished = threading.Event()
 
-    monkeypatch.setattr(configuration, "get_configuration_filepath",
-                        lambda: "fake_path")
+    monkeypatch.setenv("DATA_FILE", "fake_path")
     monkeypatch.setattr(configuration, "load_json",
                         lambda path: [{"data_file": "fake.json"}])
 

@@ -15,8 +15,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # My Packages
 from llm_hosting.app import enrich_row
+import scrape_data
+import clean_data
+import save_data
+import confirm_robots
+import load_data
 import configuration
-from . import scrape_data, clean_data, save_data, load_data, confirm_robots
 
 
 # ================

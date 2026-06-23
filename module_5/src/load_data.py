@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 import os
 import psycopg
+from psycopg import sql as pg_sql
 import configuration
 
 
@@ -169,9 +170,11 @@ def reset_database(database_name, table_name):  # pragma: no cover
         host=host
     )
     cursor = conn.cursor()
-    cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+    stmt = pg_sql.SQL("DROP TABLE IF EXISTS {table}").format(
+        table=pg_sql.Identifier(table_name)
+    )
+    cursor.execute(stmt)
     conn.commit()
-
     print(f"The table {table_name} in the {database_name} database has been cleared!")
 
 
@@ -188,17 +191,20 @@ def delete_database(database_name):  # pragma: no cover
     conn.autocommit = True
     cursor = conn.cursor()
 
-    cursor.execute(f"""
+    stmt = pg_sql.SQL("""
         SELECT pg_terminate_backend(pid)
         FROM pg_stat_activity
-        WHERE datname = '{database_name}'
-          AND pid <> pg_backend_pid();
+        WHERE datname = %s
+          AND pid <> pg_backend_pid()
     """)
+    cursor.execute(stmt, (database_name,))
 
-    cursor.execute(f"DROP DATABASE IF EXISTS {database_name}")
+    drop_stmt = pg_sql.SQL("DROP DATABASE IF EXISTS {db}").format(
+        db=pg_sql.Identifier(database_name)
+    )
+    cursor.execute(drop_stmt)
     cursor.close()
     conn.close()
-
     print(f"Database {database_name} has been deleted!")
 
 
