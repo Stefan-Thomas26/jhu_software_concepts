@@ -45,5 +45,6 @@ module_5/src/userConfig.json
 module_5/src/__pycache__/
 module_5/.env
 module_5/src/llm_hosting/__pycache__/
-module_5/src/webScraper/__pycache__
+module_5/src/webScraper/__pycache__/
+module_5/tests/.coverage
 module_5/.coverage
