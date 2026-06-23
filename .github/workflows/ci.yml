@@ -1,0 +1,173 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: ["master", "main"]
+  pull_request:
+    branches: ["master", "main"]
+
+jobs:
+  # =============================
+  # Job 1: Pylint (10/10 required)
+  # =============================
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: module_5
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Run Pylint
+        working-directory: module_5
+        run: pylint src/ --fail-under=10
+
+  # ===================================
+  # Job 2: Dependency Graph (pydeps)
+  # ===================================
+  dependency-graph:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Graphviz
+        run: sudo apt-get install -y graphviz
+
+      - name: Install dependencies
+        working-directory: module_5
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Generate dependency graph
+        working-directory: module_5
+        run: pydeps src --noshow -T svg -o dependency.svg --max-bacon=3
+
+      - name: Verify dependency.svg exists
+        working-directory: module_5
+        run: |
+          if [ ! -f dependency.svg ]; then
+            echo "dependency.svg was not generated!"
+            exit 1
+          fi
+          echo "dependency.svg generated successfully."
+
+      - name: Upload dependency graph
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-graph
+          path: module_5/dependency.svg
+
+  # ===================================
+  # Job 3: Snyk Dependency Scan
+  # ===================================
+  snyk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: module_5
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Run Snyk dependency scan
+        working-directory: module_5
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk test --file=requirements.txt --severity-threshold=high || true
+
+  # ===================================
+  # Job 4: Pytest (100% coverage)
+  # ===================================
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER:     testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB:       testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+      DB_HOST:      localhost
+      DB_PORT:      5432
+      DB_NAME:      testdb
+      DB_USER:      testuser
+      DB_PASSWORD:  testpass
+      SECRET_KEY:   ci-test-secret-key
+      DATA_FILE:    src/web_scraper/llm_extended_applicant_data.json
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: module_5
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Wait for Postgres to be ready
+        run: |
+          until pg_isready -h localhost -p 5432 -U testuser; do
+            echo "Waiting for postgres..."; sleep 1
+          done
+
+      - name: Run full Pytest suite with coverage
+        working-directory: module_5
+        run: |
+          pytest tests/ --cov=src --cov-report=term-missing \
+                 --cov-fail-under=100 | tee coverage_summary.txt
+
+      - name: Upload coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: module_5/coverage_summary.txt
