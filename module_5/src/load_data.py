@@ -2,9 +2,8 @@
 
 from datetime import datetime
 from pathlib import Path
-
+import os
 import psycopg
-
 import configuration
 
 
@@ -150,12 +149,7 @@ def load_data_into_database(filename=None):
     create_new_database(DATABASE_NAME)
 
     if filename is None:
-        try:
-            config_path = configuration.get_configuration_filepath()
-            config = configuration.load_json(config_path)
-            filename = config[0].get("dataFile", "module_2/llm_extended_applicant_data.json")
-        except (KeyError, IndexError, FileNotFoundError):
-            filename = "module_2/llm_extended_applicant_data.json"
+        filename = os.environ.get("DATA_FILE", "web_scraper/llm_extended_applicant_data.json")
 
     applicant_data_file_path = Path(filename)
     print(applicant_data_file_path.resolve())  # pragma: no cover

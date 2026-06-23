@@ -1,7 +1,7 @@
 """Module for querying and analysing grad school applicant data from PostgreSQL."""
 
 import psycopg
-
+from psycopg import sql as pg_sql
 import configuration
 
 
@@ -9,7 +9,8 @@ import configuration
 # Get connection to applicantdata database
 # ========================================
 DB_NAME = "applicantdata"
-
+DEFAULT_LIMIT = 100
+MAX_LIMIT = 100
 
 def get_connection():  # pragma: no cover
     """Return a psycopg connection to the applicantdata database."""
@@ -21,6 +22,10 @@ def get_connection():  # pragma: no cover
         host=host
     )
 
+
+def clamp_limit(limit):
+    """Clamp limit to a safe range of 1–100."""
+    return min(max(int(limit), 1), MAX_LIMIT)
 
 # ===========
 # Run a query
@@ -34,39 +39,43 @@ def run_query(cursor, sql, params=None):
 # =========
 # QUESTIONS
 # =========
-def q1_fall2026_count(cursor):
+def q1_fall2026_count(cursor, limit=DEFAULT_LIMIT):
     """Q1: How many entries applied for Fall 2026?"""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT COUNT(*)
         FROM applicants
-        WHERE semester = 'Fall 2026';
-    """
-    result = run_query(cursor, sql)
+        WHERE semester = 'Fall 2026'
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     count = result[0][0]
     print(f"Q1: Entries for Fall 2026: {count}")
     return count
 
 
-def q2_international_percent(cursor):
+def q2_international_percent(cursor, limit=DEFAULT_LIMIT):
     """Q2: What percentage of entries are from international students?"""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT
             ROUND(
                 100.0 * COUNT(*) FILTER (WHERE citizenship = 'International')
                 / COUNT(*),
                 2
             ) AS international_pct
-        FROM applicants;
-    """
-    result = run_query(cursor, sql)
+        FROM applicants
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     pct = result[0][0]
     print(f"Q2: Percentage international students: {pct}%")
     return pct
 
-
-def q3_average_scores(cursor):
+def q3_average_scores(cursor, limit=DEFAULT_LIMIT):
     """Q3: Average GPA, GRE, GRE_V, GRE_AW of applicants who provided these metrics."""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT
             ROUND(AVG(gpa)::numeric,   2) AS avg_gpa,
             ROUND(AVG(gre)::numeric,   2) AS avg_gre,
@@ -76,32 +85,36 @@ def q3_average_scores(cursor):
         WHERE gpa   IS NOT NULL
            OR gre   IS NOT NULL
            OR gre_v IS NOT NULL
-           OR gre_aw IS NOT NULL;
-    """
-    result = run_query(cursor, sql)
+           OR gre_aw IS NOT NULL
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     avg_gpa, avg_gre, avg_gre_v, avg_gre_aw = result[0]
-    print(f"Q3: Avg GPA: {avg_gpa}, Avg GRE: {avg_gre}, Avg GRE_V: {avg_gre_v}, Avg GRE_AW: {avg_gre_aw}")
+    print(f"Q3: Avg GPA: {avg_gpa}, Avg GRE: {avg_gre}, "
+          f"Avg GRE_V: {avg_gre_v}, Avg GRE_AW: {avg_gre_aw}")
     return result[0]
 
-
-def q4_american_fall2026_gpa(cursor):
+def q4_american_fall2026_gpa(cursor, limit=DEFAULT_LIMIT):
     """Q4: Average GPA of American students in Fall 2026."""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT ROUND(AVG(gpa)::numeric, 2)
         FROM applicants
         WHERE citizenship = 'American'
           AND semester    = 'Fall 2026'
-          AND gpa IS NOT NULL;
-    """
-    result = run_query(cursor, sql)
+          AND gpa IS NOT NULL
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     avg = result[0][0]
     print(f"Q4: Average GPA of American students in Fall 2026: {avg}")
     return avg
 
 
-def q5_fall2026_acceptance_pct(cursor):
+def q5_fall2026_acceptance_pct(cursor, limit=DEFAULT_LIMIT):
     """Q5: What percent of Fall 2026 entries are Acceptances?"""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT
             ROUND(
                 100.0 * COUNT(*) FILTER (WHERE status = 'Accepted')
@@ -109,47 +122,53 @@ def q5_fall2026_acceptance_pct(cursor):
                 2
             ) AS acceptance_pct
         FROM applicants
-        WHERE semester = 'Fall 2026';
-    """
-    result = run_query(cursor, sql)
+        WHERE semester = 'Fall 2026'
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     pct = result[0][0]
     print(f"Q5: Acceptance rate for Fall 2026: {pct}%")
     return pct
 
 
-def q6_fall2026_accepted_gpa(cursor):
+def q6_fall2026_accepted_gpa(cursor, limit=DEFAULT_LIMIT):
     """Q6: Average GPA of Fall 2026 acceptances."""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT ROUND(AVG(gpa)::numeric, 2)
         FROM applicants
         WHERE semester = 'Fall 2026'
           AND status   = 'Accepted'
-          AND gpa IS NOT NULL;
-    """
-    result = run_query(cursor, sql)
+          AND gpa IS NOT NULL
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     avg = result[0][0]
     print(f"Q6: Average GPA of Fall 2026 acceptances: {avg}")
     return avg
 
 
-def q7_jhu_masters_cs(cursor):
+def q7_jhu_masters_cs(cursor, limit=DEFAULT_LIMIT):
     """Q7: How many entries applied to JHU for a Masters in Computer Science?"""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT COUNT(*)
         FROM applicants
         WHERE program    ILIKE '%%Johns Hopkins%%'
           AND program    ILIKE '%%Computer Science%%'
-          AND degreeType ILIKE '%%Master%%';
-    """
-    result = run_query(cursor, sql)
+          AND degreeType ILIKE '%%Master%%'
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     count = result[0][0]
     print(f"Q7: JHU Masters CS applicants: {count}")
     return count
 
 
-def q8_top_schools_phd_cs_2026(cursor):
+def q8_top_schools_phd_cs_2026(cursor, limit=DEFAULT_LIMIT):
     """Q8: How many 2026 acceptances from Georgetown, MIT, Stanford, or CMU for PhD CS?"""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT COUNT(*)
         FROM applicants
         WHERE program ILIKE ANY(ARRAY[
@@ -162,17 +181,18 @@ def q8_top_schools_phd_cs_2026(cursor):
           AND program    ILIKE '%%Computer Science%%'
           AND degreeType ILIKE '%%PhD%%'
           AND status     = 'Accepted'
-          AND semester   LIKE '%%2026%%';
-    """
-    result = run_query(cursor, sql)
+          AND semester   LIKE '%%2026%%'
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     count = result[0][0]
     print(f"Q8: # Acceptances from Georgetown, MIT, Stanford, or CMU for PhD CS in 2026: {count}")
     return count
 
-
-def q9_llm_fields(cursor):
+def q9_llm_fields(cursor, limit=DEFAULT_LIMIT):
     """Q9: Do numbers for Q8 change using LLM generated fields?"""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT COUNT(*)
         FROM applicants
         WHERE llm_generated_university ILIKE ANY(ARRAY[
@@ -185,17 +205,19 @@ def q9_llm_fields(cursor):
           AND llm_generated_program ILIKE '%%Computer Science%%'
           AND degreeType ILIKE '%%PhD%%'
           AND status     = 'Accepted'
-          AND semester   LIKE '%%2026%%';
-    """
-    result = run_query(cursor, sql)
+          AND semester   LIKE '%%2026%%'
+        LIMIT %s
+    """)
+    result = run_query(cursor, stmt, (limit,))
     count = result[0][0]
     print(f"Q9: Top school PhD CS 2026 acceptances (LLM fields): {count}")
     return count
 
 
-def q10_phd_rejection_rate_by_year(cursor):
+def q10_phd_rejection_rate_by_year(cursor, limit=DEFAULT_LIMIT):
     """Q10: What is the rejection rate of PhD applicants in 2025 vs 2026?"""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT
             semester,
             COUNT(*) AS total,
@@ -208,18 +230,20 @@ def q10_phd_rejection_rate_by_year(cursor):
         WHERE degreeType ILIKE '%%PhD%%'
           AND (semester LIKE '%%2026%%' OR semester LIKE '%%2025%%')
         GROUP BY semester
-        ORDER BY semester DESC;
-    """
-    results = run_query(cursor, sql)
+        ORDER BY semester DESC
+        LIMIT %s
+    """)
+    results = run_query(cursor, stmt, (limit,))
     print("\nQ10: PhD rejection rate by year (2025 vs 2026):")
     for row in results:
         print(f"  {row[0]}: {row[3]}% rejected ({row[2]}/{row[1]} applicants)")
     return results
 
 
-def q11_phd_gpa_accepted_vs_rejected(cursor):
+def q11_phd_gpa_accepted_vs_rejected(cursor, limit=DEFAULT_LIMIT):
     """Q11: Average GPA of PhD students accepted vs rejected in 2026."""
-    sql = """
+    limit = clamp_limit(limit)
+    stmt = pg_sql.SQL("""
         SELECT
             status,
             COUNT(*) AS total,
@@ -230,9 +254,10 @@ def q11_phd_gpa_accepted_vs_rejected(cursor):
           AND status IN ('Accepted', 'Rejected')
           AND gpa IS NOT NULL
         GROUP BY status
-        ORDER BY status;
-    """
-    results = run_query(cursor, sql)
+        ORDER BY status
+        LIMIT %s
+    """)
+    results = run_query(cursor, stmt, (limit,))
     print("\nQ11: Average GPA of PhD applicants accepted vs rejected in 2026:")
     for row in results:
         print(f"  {row[0]}: avg GPA = {row[2]} ({row[1]} applicants with GPA reported)")

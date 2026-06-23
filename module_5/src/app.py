@@ -1,4 +1,6 @@
 """Flask application factory and route definitions for the GradCafe analysis app."""
+from dotenv import load_dotenv
+load_dotenv()
 
 import os
 import subprocess
@@ -7,7 +9,6 @@ import threading
 
 from flask import Flask, jsonify, render_template
 
-import configuration
 import query_data
 from load_data import load_data_into_database
 
@@ -127,10 +128,7 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
 
         def run_load():
             try:
-                config_path = configuration.get_configuration_filepath()
-                config = configuration.load_json(config_path)
-                filename = config[0].get(
-                    "data_file", "module_2/llm_extended_applicant_data.json")
+                filename = os.environ.get("DATA_FILE", "web_scraper/llm_extended_applicant_data.json")
                 loader_func(filename)
                 with db_init_lock:
                     db_init_state["message"] = "Database created! Click Update Analysis to load results."

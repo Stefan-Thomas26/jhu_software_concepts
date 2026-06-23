@@ -10,28 +10,18 @@ def load_json(file_path):
         data = json.load(file)
     return data
 
-
-def get_configuration_filepath():
-    """Return the path to the local userConfig.json file."""
-    config_path = os.path.join(os.path.dirname(__file__), "userConfig.json")
-    return config_path
-
-
 def load_configuration_file():  # pragma: no cover
-    """Return username, password, and host from the local config file."""
-    config_path = get_configuration_filepath()
-    print(config_path)
-    if os.path.exists(config_path):
-        config_info = load_json(config_path)
+    """Return username, password, and host from environment variables."""
+    user = os.environ.get("DB_USER")
+    password = os.environ.get("DB_PASSWORD")
+    host = os.environ.get("DB_HOST", "localhost")
 
-        for item in config_info:
-            user = item["user"]
-            password = item["password"]
-            host = item["host"]
+    if not all([user, password, host]):
+        raise ValueError(
+            "Missing required environment variables: DB_USER, DB_PASSWORD, DB_HOST"
+        )
 
-        return user, password, host
-
-    return None
+    return user, password, host
 
 if __name__ == "__main__":
     print(os.cpu_count())
