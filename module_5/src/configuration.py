@@ -23,5 +23,5 @@ def load_configuration_file():  # pragma: no cover
 
     return user, password, host
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     print(os.cpu_count())

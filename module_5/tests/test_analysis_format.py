@@ -189,3 +189,15 @@ def test_update_analysis_returns_500_on_query_error(client_no_db):
     """POST /update-analysis returns 500 when query raises."""
     resp = client_no_db.post("/update-analysis")
     assert resp.status_code == 500
+
+@pytest.mark.analysis
+def test_load_json(tmp_path):
+    """load_json reads and returns JSON file contents."""
+    import json
+    import configuration
+    data = [{"key": "value"}]
+    f = tmp_path / "test.json"
+    f.write_text(json.dumps(data))
+
+    result = configuration.load_json(f)
+    assert result == data

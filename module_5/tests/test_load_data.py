@@ -107,47 +107,28 @@ def test_load_data_into_database_with_filename(monkeypatch):
 
 @pytest.mark.db
 def test_load_data_into_database_none_filename_reads_config(monkeypatch, clean_applicants):
-    """load_data_into_database(None) reads filename from config."""
-    import psycopg as _psycopg
-    kwargs = _parse_db_url(_db_url())
-    dbname = kwargs["dbname"]
+    """load_data_into_database(None) reads filename from DATA_FILE env var."""
+    captured = []
 
     monkeypatch.setattr(load_data, "create_new_database", lambda name: None)
-
-    original_connect = _psycopg.connect
-    def patched_connect(**kw):
-        kw["dbname"] = dbname
-        return original_connect(**kw)
-    monkeypatch.setattr(load_data.psycopg, "connect", patched_connect)
+    monkeypatch.setattr(load_data, "load_into_db",
+                        lambda applicants, db: captured.append(applicants))
 
     sample2 = [{**SAMPLE[0], "applicantNumber": 4002}]
-    tmpfile  = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+    tmpfile = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
     json.dump(sample2, tmpfile)
     tmpfile.close()
 
-    monkeypatch.setattr(configuration, "get_configuration_filepath",
-                        lambda: "fake")
-    monkeypatch.setattr(configuration, "load_json",
-                        lambda path: [{"dataFile": tmpfile.name}]
-                        if path == "fake"
-                        else json.load(open(path)))
+    monkeypatch.delenv("DATA_FILE", raising=False)
+    monkeypatch.setenv("DATA_FILE", tmpfile.name)
 
     try:
         load_data.load_data_into_database(None)
     finally:
         os.unlink(tmpfile.name)
 
-    # Use fresh connection to avoid stale transaction view
-    import psycopg
-    fresh_conn = psycopg.connect(**kwargs)
-    fresh_cur  = fresh_conn.cursor()
-    fresh_cur.execute("SELECT COUNT(*) FROM applicants WHERE p_id = 4002;")
-    count = fresh_cur.fetchone()[0]
-    fresh_cur.close()
-    fresh_conn.close()
-
-    assert count == 1
-
+    assert len(captured) == 1
+    assert len(captured[0]) == 1
 
 
 @pytest.mark.db
@@ -155,9 +136,8 @@ def test_load_data_into_database_config_exception_uses_fallback(monkeypatch):
     """load_data_into_database(None) falls back to default when config fails."""
     monkeypatch.setattr(load_data, "create_new_database", lambda name: None)
 
-    # Make config reading raise to hit the except branch
-    monkeypatch.setattr(configuration, "get_configuration_filepath",
-                        lambda: (_ for _ in ()).throw(RuntimeError("no config")))
+    # Ensure DATA_FILE is not set so fallback is used
+    monkeypatch.delenv("DATA_FILE", raising=False)
 
     # Capture what filename gets used after fallback
     captured = []

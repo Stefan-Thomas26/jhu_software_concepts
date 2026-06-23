@@ -135,7 +135,7 @@ def load_into_db(applicants, database_name):
             else:
                 skipped += 1
         except psycopg.Error as e:
-            print(f"  Insert error for p_id {a.get('applicantNumber')}: {e}")
+            print(f"  Insert error for p_id {a.get('applicant_number')}: {e}")
             conn.rollback()
 
     conn.commit()
