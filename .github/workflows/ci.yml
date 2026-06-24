@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Pylint
         working-directory: module_5
-        run: pylint src/ --fail-under=10
+         run: pylint src/ --fail-under=10 --rcfile=.pylintrc
 
   # ===================================
   # Job 2: Dependency Graph (pydeps)
