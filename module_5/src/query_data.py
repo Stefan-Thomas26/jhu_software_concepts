@@ -289,7 +289,7 @@ def run_all_queries():
         results["q9"] = q9_llm_fields(cursor)
         results["q10"] = q10_phd_rejection_rate_by_year(cursor)
         results["q11"] = q11_phd_gpa_accepted_vs_rejected(cursor)
-   
+
     except (psycopg.Error, RuntimeError) as e:
         print(f"Query error: {e}")
         print("=" * 60)

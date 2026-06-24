@@ -208,7 +208,7 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
             results = app.config["QUERY_FUNC"]()
         except Exception as e:  # pylint: disable=broad-exception-caught
             return jsonify({"status": "error",
-                            "message": "An error occurred processing your request."}), 500
+                            "message": f"Query error: {e}"}), 500
 
         serialisable = {}
         for key, val in results.items():
