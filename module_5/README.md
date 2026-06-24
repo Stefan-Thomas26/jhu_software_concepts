@@ -62,7 +62,7 @@ module_5/
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - PostgreSQL 15+
 - Graphviz (`dot` command available in PATH)
 - Node.js (for Snyk CLI)
