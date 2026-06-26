@@ -38,7 +38,6 @@ module_4/.coverage
 # Module 5
 # ========
 module_5/module5.venv
-module_5/.pylintrc
 module_5/tests/__pycache__/
 module_5/.pytest_cache/
 module_5/src/userConfig.json
