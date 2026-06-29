@@ -1,0 +1,8 @@
+[
+    {
+        "user": "postgres",
+        "password": "Thomas99!",
+        "host": "localhost",
+        "data_file": "../../module_2/llm_extended_applicant_data.json"
+    }
+]
