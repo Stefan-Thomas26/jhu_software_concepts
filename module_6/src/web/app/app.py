@@ -8,8 +8,8 @@ load_dotenv()
 
 from flask import Flask, jsonify, render_template
 
-import query_data
-from load_data import load_data_into_database
+from . import query_data
+from . import  load_data
 
 
 # ============
@@ -41,7 +41,7 @@ def _real_scraper(scraper_path, llm_file):  # pragma: no cover
         [sys.executable, scraper_path, "--mode", "update", "--part", "both"],
         check=True
     )
-    load_data_into_database(llm_file)
+    load_data.load_data_into_database(llm_file)
 
 
 # ===========
@@ -75,7 +75,7 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
     # Store default functions in app config
     # Can be overridden by passing test_config to create_app
     app.config["SCRAPER_FUNC"] = _real_scraper
-    app.config["DB_LOADER_FUNC"] = load_data_into_database
+    app.config["DB_LOADER_FUNC"] = load_data.load_data_into_database
     app.config["QUERY_FUNC"] = query_data.run_all_queries
 
     if test_config:
@@ -222,11 +222,3 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
         return jsonify({"status": "ok", "results": serialisable}), 200
 
     return app
-
-
-# ===========
-# ENTRY POINT
-# ===========
-if __name__ == "__main__":  # pragma: no cover
-    application = create_app()
-    application.run(host="0.0.0.0", port=8080, debug=os.environ.get("FLASK_DEBUG", "false").lower() == "true")
