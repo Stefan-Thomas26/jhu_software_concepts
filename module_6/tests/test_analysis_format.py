@@ -9,8 +9,8 @@ import re
 import decimal
 import pytest
 from bs4 import BeautifulSoup
-from conftest import FAKE_RESULTS, fake_loader_func, fake_query_func, fake_scraper_func
-import app as app_module
+from conftest import FAKE_RESULTS, fake_query_func, fake_publish_func
+from conftest import app_module
 
 
 TWO_DECIMAL_PCT_RE = re.compile(r"\d+\.\d{2}%")
@@ -81,7 +81,6 @@ def test_q5_answer_label_present(client):
 def test_percentages_have_two_decimals(client):
     """All percentages on the page are formatted with exactly two decimal places."""
     html = _get_analysis_page(client).decode("utf-8")
-    # Find all percentage patterns
     all_pcts = re.findall(r"(\d+(?:\.\d+)?)%", html)
     for pct_str in all_pcts:
         parts = pct_str.split(".")
@@ -95,7 +94,7 @@ def test_percentages_have_two_decimals(client):
 def test_q2_percentage_two_decimals(client):
     """Q2 (international %) is rendered with two decimal places."""
     soup = _soup(_get_analysis_page(client))
-    q2   = soup.find(id = "q2")
+    q2   = soup.find(id="q2")
     text = q2.get_text()
     assert TWO_DECIMAL_PCT_RE.search(text), \
         f"Two-decimal % not found in Q2 text: {text!r}"
@@ -105,7 +104,7 @@ def test_q2_percentage_two_decimals(client):
 def test_q5_percentage_two_decimals(client):
     """Q5 (acceptance rate) is rendered with two decimal places."""
     soup = _soup(_get_analysis_page(client))
-    q5   = soup.find(id = "q5")
+    q5   = soup.find(id="q5")
     text = q5.get_text()
     assert TWO_DECIMAL_PCT_RE.search(text), \
         f"Two-decimal % not found in Q5 text: {text!r}"
@@ -115,8 +114,8 @@ def test_q5_percentage_two_decimals(client):
 def test_q10_table_percentages_two_decimals(client):
     """Q10 rejection-rate table shows percentages with two decimal places."""
     soup  = _soup(_get_analysis_page(client))
-    q10   = soup.find(id = "q10")
-    pills = q10.find_all(class_ = "pill") if q10 else []
+    q10   = soup.find(id="q10")
+    pills = q10.find_all(class_="pill") if q10 else []
     assert len(pills) > 0, "No .pill elements found in Q10"
     for pill in pills:
         text = pill.get_text()
@@ -171,12 +170,10 @@ def test_update_analysis_handles_none_values(client):
     def query_with_none():
         return results_with_none
 
-    app_module._reset_state()
     flask_app = app_module.create_app({
-        "TESTING":        True,
-        "QUERY_FUNC":     query_with_none,
-        "DB_LOADER_FUNC": fake_loader_func,
-        "SCRAPER_FUNC":   fake_scraper_func,
+        "TESTING":      True,
+        "QUERY_FUNC":   query_with_none,
+        "PUBLISH_FUNC": fake_publish_func,
     })
     c = flask_app.test_client()
     resp = c.post("/update-analysis")
@@ -189,6 +186,7 @@ def test_update_analysis_returns_500_on_query_error(client_no_db):
     """POST /update-analysis returns 500 when query raises."""
     resp = client_no_db.post("/update-analysis")
     assert resp.status_code == 500
+
 
 @pytest.mark.analysis
 def test_load_json(tmp_path):

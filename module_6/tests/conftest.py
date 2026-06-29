@@ -12,12 +12,14 @@ import pytest
 import psycopg
 
 # =========================================================================
-# Make sure the src package is importable when pytest is run from module_4/
+# Make sure the src package is importable when pytest is run from module_6/
 # =========================================================================
-SRC_DIR = os.path.join(os.path.dirname(__file__), "..", "src/web/app")
-sys.path.insert(0, os.path.abspath(SRC_DIR))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src/web/webapp")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src/web")))
 
 import app as app_module
+# Register so test files that do 'import app as app_module' get the same object
+sys.modules["app"] = app_module
 
 
 # =============================
@@ -27,34 +29,33 @@ def _load_env_file():
     """Load .env file if it exists — so users don't need to export manually."""
     env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
     env_path = os.path.abspath(env_path)
-    
+
     if not os.path.exists(env_path):
         return
-    
+
     with open(env_path) as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
-                # Skip comment line
                 continue
-            
             if "=" in line:
                 key, val = line.split("=", 1)
                 os.environ.setdefault(key.strip(), val.strip())
 
 
-_load_env_file()  # runs immediately when conftest is loaded
+_load_env_file()
 
 
 # ===================
 # DATABASE_URL helper
 # ===================
 def _db_url():
+    """Return DATABASE_URL or skip the test if not set."""
     url = os.environ.get("DATABASE_URL")
     if not url:
         pytest.skip(
             "\n\nDATABASE_URL environment not set. To run DB tests:\n"
-            "  1. Copy module_4/.env.example to module_4/.env\n"
+            "  1. Copy .env.example to .env\n"
             "  2. Fill in your PostgreSQL credentials\n"
             "  3. Re-run pytest\n"
         )
@@ -63,7 +64,7 @@ def _db_url():
 
 def _parse_db_url(url):
     """
-    Parse ``postgresql://user:pass@host:port/dbname`` into a dict of kwargs
+    Parse ``postgresql://user:pass@host:port/dbname`` into kwargs
     accepted by psycopg.connect().
     """
     m = re.match(
@@ -83,24 +84,18 @@ def _parse_db_url(url):
 # ===========================================
 # Raw psycopg connection to the test database
 # ===========================================
-@pytest.fixture(scope = "session", autouse = True)
+@pytest.fixture(scope="session", autouse=True)
 def ensure_test_database():
-    """
-    Creates the test database if it does not already exist.
-    Runs once per session before any other fixture.
-    Skips silently if DATABASE_URL is not set.
-    """
+    """Create the test database if it does not already exist."""
     url = os.environ.get("DATABASE_URL")
     if not url:
-        return  # DB tests will skip themselves via _db_url()
+        return
 
-    kwargs  = _parse_db_url(url)
-    dbname  = kwargs.pop("dbname")  # remove target DB from kwargs
-    
-    # Connect to the default postgres database to create our test DB
+    kwargs = _parse_db_url(url)
+    dbname = kwargs.pop("dbname")
+
     conn = psycopg.connect(**kwargs, dbname="postgres")
     conn.autocommit = True
-
     try:
         conn.execute(f"CREATE DATABASE {dbname}")
         print(f"\nCreated test database '{dbname}'")
@@ -109,14 +104,14 @@ def ensure_test_database():
     finally:
         conn.close()
 
-@pytest.fixture(scope = "session") #fixture runs once for entire test session, not once per test
+
+@pytest.fixture(scope="session")
 def db_conn():
     """Session-scoped psycopg connection to the test database."""
-    url    = _db_url()
+    url = _db_url()
     kwargs = _parse_db_url(url)
-    conn   = psycopg.connect(**kwargs)
+    conn = psycopg.connect(**kwargs)
     yield conn
-    # Teardown - last thing to run
     conn.close()
 
 
@@ -125,10 +120,7 @@ def db_conn():
 # ================================================
 @pytest.fixture()
 def clean_table(db_conn):
-    """
-    Drop and recreate the *applicants* table before each test, then drop it
-    again on teardown.  Guarantees an empty database starting state.
-    """
+    """Drop and recreate the applicants table before each test."""
     cur = db_conn.cursor()
     cur.execute("DROP TABLE IF EXISTS applicants")
     cur.execute("""
@@ -152,8 +144,7 @@ def clean_table(db_conn):
         );
     """)
     db_conn.commit()
-    yield db_conn #hand connection over to the test via 'yield'
-    # Teardown
+    yield db_conn
     cur.execute("DROP TABLE IF EXISTS applicants;")
     db_conn.commit()
     cur.close()
@@ -187,41 +178,25 @@ def fake_query_func():
     return FAKE_RESULTS
 
 
-def fake_loader_func(filename):
-    """Do nothing loader — does not touch the database."""
-    pass
-
-
-def fake_scraper_func(scraper_path, llm_file):
-    """Do nothing scraper — does not launch a subprocess."""
-    pass
+def fake_publish_func(kind, payload=None, headers=None):
+    """Do nothing publisher — does not connect to RabbitMQ."""
 
 
 def error_query_func():
-    """Tests a query failure."""
+    """Simulate a query failure."""
     raise RuntimeError("DB Query failure")
-
-
-def error_loader_func(filename):
-    """Tests a loader failure."""
-    raise RuntimeError("Loader failed")
 
 
 # ==================
 # Flask test clients
 # ==================
 @pytest.fixture()
-def client(request):
-    """
-    Standard test client with fake query/loader/scraper functions.
-    Resets busy state before each test.
-    """
-    app_module._reset_state()
+def client():
+    """Standard test client with fake query and publish functions."""
     flask_app = app_module.create_app({
-        "TESTING":    True,
-        "QUERY_FUNC":   fake_query_func,
-        "DB_LOADER_FUNC":  fake_loader_func,
-        "SCRAPER_FUNC": fake_scraper_func,
+        "TESTING": True,
+        "QUERY_FUNC": fake_query_func,
+        "PUBLISH_FUNC": fake_publish_func,
     })
     with flask_app.test_client() as c:
         yield c
@@ -230,26 +205,10 @@ def client(request):
 @pytest.fixture()
 def client_no_db():
     """Test client where QUERY_FUNC raises — simulates missing database."""
-    app_module._reset_state()
     flask_app = app_module.create_app({
-        "TESTING":    True,
-        "QUERY_FUNC":   error_query_func,
-        "DB_LOADER_FUNC":  fake_loader_func,
-        "SCRAPER_FUNC": fake_scraper_func,
-    })
-    with flask_app.test_client() as c:
-        yield c
-
-
-@pytest.fixture()
-def client_error_loader():
-    """Test client where LOADER_FUNC raises — simulates loader failure."""
-    app_module._reset_state()
-    flask_app = app_module.create_app({
-        "TESTING":    True,
-        "QUERY_FUNC":   fake_query_func,
-        "DB_LOADER_FUNC":  error_loader_func,
-        "SCRAPER_FUNC": fake_scraper_func,
+        "TESTING": True,
+        "QUERY_FUNC": error_query_func,
+        "PUBLISH_FUNC": fake_publish_func,
     })
     with flask_app.test_client() as c:
         yield c

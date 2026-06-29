@@ -60,10 +60,9 @@ module_6/module6.venv
 
 module_6/src/userConfig.json
 module_6/src/__pycache__/
-
-module_6/src/web/app/__pycache__/
+module_6/src/web/_pycache__/
+module_6/src/web/webapp/__pycache__/
 module_6/src/worker/etl/llm_hosting/__pycache__/
-module_6/src/web_scraper/__pycache__
 
 
 module_6/tests/__pycache__/

@@ -5,7 +5,7 @@ from pathlib import Path
 import os
 import psycopg
 from psycopg import sql as pg_sql
-from . import configuration
+import configuration
 
 
 # Constants

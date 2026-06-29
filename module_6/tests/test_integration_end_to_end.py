@@ -8,9 +8,7 @@ Markers: integration
 DB tests require DATABASE_URL env var.
 """
 import re
-import time
 import decimal
-import threading
 import json
 import os
 import sys
@@ -23,7 +21,10 @@ import app as app_module
 import load_data
 import query_data
 import configuration
-from conftest import _parse_db_url, _db_url, fake_query_func, fake_scraper_func, fake_loader_func, FAKE_RESULTS, error_query_func
+from conftest import (
+    _parse_db_url, _db_url, fake_query_func, fake_publish_func,
+    FAKE_RESULTS, error_query_func
+)
 
 
 TWO_DECIMAL_PCT_RE = re.compile(r"\d+\.\d{2}%")
@@ -36,7 +37,7 @@ TWO_DECIMAL_PCT_RE = re.compile(r"\d+\.\d{2}%")
 def patch_config(monkeypatch):
     """Patch configuration to use DATABASE_URL for DB integration tests."""
     try:
-        url    = _db_url()
+        url = _db_url()
     except pytest.skip.Exception:
         return
 
@@ -65,13 +66,12 @@ def patch_config(monkeypatch):
 # ==============
 # Helper factory
 # ==============
-def _make_client(scraper_func=None, loader_func=None, query_func=None):
-    app_module._reset_state()
+def _make_client(publish_func=None, query_func=None):
+    """Create a test client with injectable functions."""
     flask_app = app_module.create_app({
-        "TESTING":        True,
-        "QUERY_FUNC":     query_func   or fake_query_func,
-        "DB_LOADER_FUNC": loader_func  or fake_loader_func,
-        "SCRAPER_FUNC":   scraper_func or fake_scraper_func,
+        "TESTING":      True,
+        "QUERY_FUNC":   query_func   or fake_query_func,
+        "PUBLISH_FUNC": publish_func or fake_publish_func,
     })
     return flask_app.test_client()
 
@@ -89,15 +89,14 @@ MULTI_RECORD_DATA = [
      "statusDate": "Mar 01, 2025",
      "semester": "Fall 2026",
      "citizenship": "American",
-     "gpa": 3.9, 
+     "gpa": 3.9,
      "gre": 167.0,
      "gre_v": 160.0,
      "gre_aw": 4.5,
      "comment": "",
      "url": "http://a.com/1",
      "llm_generated_program": "Computer Science",
-     "llm_generated_university": "Massachusetts Institute of Technology"
-     },
+     "llm_generated_university": "Massachusetts Institute of Technology"},
 
     {"applicantNumber": 2002,
      "university": "Stanford",
@@ -107,7 +106,7 @@ MULTI_RECORD_DATA = [
      "status": "Rejected",
      "statusDate": "Apr 01, 2025",
      "semester": "Fall 2026",
-     "citizenship": "International", 
+     "citizenship": "International",
      "gpa": 3.7,
      "gre": 163.0,
      "gre_v": 157.0,
@@ -116,25 +115,24 @@ MULTI_RECORD_DATA = [
      "url": "http://a.com/2",
      "llm_generated_program": "Computer Science",
      "llm_generated_university": "Stanford University"},
-    
-    {"applicantNumber": 2003, 
+
+    {"applicantNumber": 2003,
      "university": "Carnegie Mellon",
-     "program": "Computer Science", 
+     "program": "Computer Science",
      "degreeType": "PhD",
-     "datePosted": "Mar 01, 2025", 
+     "datePosted": "Mar 01, 2025",
      "status": "Accepted",
-     "statusDate": "May 01, 2025", 
+     "statusDate": "May 01, 2025",
      "semester": "Fall 2026",
-     "citizenship": "American", 
+     "citizenship": "American",
      "gpa": 3.95,
      "gre": 169.0,
-     "gre_v": 162.0, 
+     "gre_v": 162.0,
      "gre_aw": 5.0,
-     "comment": "", 
+     "comment": "",
      "url": "http://a.com/3",
      "llm_generated_program": "Computer Science",
-     "llm_generated_university": "Carnegie Mellon University"
-     },
+     "llm_generated_university": "Carnegie Mellon University"},
 ]
 
 
@@ -143,26 +141,17 @@ MULTI_RECORD_DATA = [
 # =================================================
 @pytest.mark.integration
 def test_e2e_pull_succeeds():
-    """POST /pull-data returns 200 with ok=True."""
+    """POST /pull-data returns 202 with queued status."""
     c    = _make_client()
     resp = c.post("/pull-data")
-    assert resp.status_code == 200
-    assert resp.get_json().get("ok") is True
+    assert resp.status_code == 202
+    assert resp.get_json().get("status") == "queued"
 
 
 @pytest.mark.integration
-def test_e2e_update_succeeds_after_pull():
-    """POST /update-analysis returns 200 once pull is complete."""
-    done = threading.Event()
-
-    def signaling_scraper(path, llm_file):
-        done.set()
-
-    c = _make_client(scraper_func=signaling_scraper)
-    c.post("/pull-data")
-    done.wait(timeout=2)
-    time.sleep(0.05)
-
+def test_e2e_update_succeeds():
+    """POST /update-analysis returns 200."""
+    c    = _make_client()
     resp = c.post("/update-analysis")
     assert resp.status_code == 200
 
@@ -204,31 +193,42 @@ def test_e2e_update_analysis_returns_all_keys():
         assert key in results
 
 
+@pytest.mark.integration
+def test_e2e_pull_calls_publish():
+    """POST /pull-data calls publish with scrape_new_data."""
+    called = []
+
+    def tracking_publish(kind, payload=None, headers=None):
+        called.append(kind)
+
+    c = _make_client(publish_func=tracking_publish)
+    c.post("/pull-data")
+    assert called == ["scrape_new_data"]
+
+
+@pytest.mark.integration
+def test_e2e_create_database_calls_publish():
+    """POST /create-database calls publish with recompute_analytics."""
+    called = []
+
+    def tracking_publish(kind, payload=None, headers=None):
+        called.append(kind)
+
+    c = _make_client(publish_func=tracking_publish)
+    c.post("/create-database")
+    assert called == ["recompute_analytics"]
+
+
 # ==============================
 # E2E 2: real DB insert -> query
 # ==============================
 @pytest.mark.integration
-def test_e2e_pull_inserts_rows_into_db(clean_table):
-    """After pull with fake scraper, rows appear in the DB."""
+def test_e2e_insert_rows_into_db(clean_table):
+    """Rows inserted via load_into_db appear in the DB."""
     kwargs = _parse_db_url(_db_url())
     dbname = kwargs["dbname"]
 
-    done = threading.Event()
-
-    def scraper_then_load(path, llm_file):
-        load_data.load_into_db(MULTI_RECORD_DATA, dbname)
-        done.set()
-
-    app_module._reset_state()
-    flask_app = app_module.create_app({
-        "TESTING":        True,
-        "QUERY_FUNC":     fake_query_func,
-        "DB_LOADER_FUNC": fake_loader_func,
-        "SCRAPER_FUNC":   scraper_then_load,
-    })
-    c = flask_app.test_client()
-    c.post("/pull-data")
-    done.wait(timeout=3)
+    load_data.load_into_db(MULTI_RECORD_DATA, dbname)
 
     cur = clean_table.cursor()
     cur.execute("SELECT COUNT(*) FROM applicants;")
@@ -244,10 +244,10 @@ def test_e2e_update_analysis_after_db_insert(clean_table):
     dbname = kwargs["dbname"]
     load_data.load_into_db(MULTI_RECORD_DATA, dbname)
 
-    app_module._reset_state()
     flask_app = app_module.create_app({
-        "TESTING":    True,
-        "QUERY_FUNC": query_data.run_all_queries,
+        "TESTING":      True,
+        "QUERY_FUNC":   query_data.run_all_queries,
+        "PUBLISH_FUNC": fake_publish_func,
     })
     c    = flask_app.test_client()
     resp = c.post("/update-analysis")
@@ -261,8 +261,8 @@ def test_e2e_update_analysis_after_db_insert(clean_table):
 # E2E 3: multiple pulls - uniqueness policy
 # =========================================
 @pytest.mark.integration
-def test_e2e_double_pull_no_duplicates(clean_table):
-    """Running pull twice with the same data keeps row count consistent."""
+def test_e2e_double_insert_no_duplicates(clean_table):
+    """Inserting same data twice keeps row count consistent."""
     kwargs = _parse_db_url(_db_url())
     dbname = kwargs["dbname"]
 
@@ -277,7 +277,7 @@ def test_e2e_double_pull_no_duplicates(clean_table):
 
 
 @pytest.mark.integration
-def test_e2e_overlapping_pull_no_duplicates(clean_table):
+def test_e2e_overlapping_insert_no_duplicates(clean_table):
     """Overlapping data results in correct unique row count."""
     kwargs = _parse_db_url(_db_url())
     dbname = kwargs["dbname"]
@@ -306,29 +306,14 @@ def test_e2e_query_error_returns_500(client_no_db):
 
 
 @pytest.mark.integration
-def test_e2e_busy_prevents_update_during_pull():
-    """While pull is running, /update-analysis is blocked with 409."""
-    started = threading.Event()
-    done    = threading.Event()
+def test_e2e_broker_down_returns_503():
+    """When publish raises, POST /pull-data returns 503."""
+    def error_publish(kind, payload=None, headers=None):
+        raise RuntimeError("broker down")
 
-    def slow_scraper(path, llm_file):
-        started.set()
-        done.wait(timeout=2)
-
-    app_module._reset_state()
-    flask_app = app_module.create_app({
-        "TESTING":        True,
-        "QUERY_FUNC":     fake_query_func,
-        "DB_LOADER_FUNC": fake_loader_func,
-        "SCRAPER_FUNC":   slow_scraper,
-    })
-    c = flask_app.test_client()
-    c.post("/pull-data")
-    started.wait(timeout=1)
-
-    resp = c.post("/update-analysis")
-    assert resp.status_code == 409
-    done.set()
+    c    = _make_client(publish_func=error_publish)
+    resp = c.post("/pull-data")
+    assert resp.status_code == 503
 
 
 @pytest.mark.integration
@@ -343,18 +328,11 @@ def test_e2e_render_after_update_shows_correct_values():
 @pytest.mark.integration
 def test_e2e_pull_then_update_then_render():
     """Full pull -> update -> render flow works end to end."""
-    done = threading.Event()
-
-    def fast_scraper(path, llm_file):
-        done.set()
-
-    c = _make_client(scraper_func=fast_scraper)
+    c = _make_client()
 
     # Step 1 - pull
     resp = c.post("/pull-data")
-    assert resp.status_code == 200
-    done.wait(timeout=2)
-    time.sleep(0.05)
+    assert resp.status_code == 202
 
     # Step 2 - update
     resp = c.post("/update-analysis")
