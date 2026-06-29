@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 import app as app_module
-import load_data
+from db import load_data
 import query_data
 import configuration
 from conftest import (
