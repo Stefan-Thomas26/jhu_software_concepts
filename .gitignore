@@ -50,3 +50,29 @@ module_5/src/web_scraper/llm_hosting/__pycache__/
 module_5/requirementsCOPY.txt
 module_5/gradcafe_analysis.egg-info/
 module_5/src/web_scraper/__pycache__
+# ========
+# Module 6
+# ========
+module_6/.coverage
+module_6/.pytest_cache/
+
+module_6/module6.venv
+module_6/src/web/app/__pycache__/
+
+
+
+
+
+
+module_6/src/userConfig.json
+module_6/src/__pycache__/
+module_6/.env
+module_6/src/llm_hosting/__pycache__/
+module_6/src/web_scraper/llm_hosting/__pycache__/
+module_6/requirementsCOPY.txt
+module_6/gradcafe_analysis.egg-info/
+module_6/src/web_scraper/__pycache__
+
+
+module_6/tests/__pycache__/
+module_6/tests/.coverage
