@@ -14,7 +14,7 @@ import psycopg
 # =========================================================================
 # Make sure the src package is importable when pytest is run from module_4/
 # =========================================================================
-SRC_DIR = os.path.join(os.path.dirname(__file__), "..", "src")
+SRC_DIR = os.path.join(os.path.dirname(__file__), "..", "src/web/app")
 sys.path.insert(0, os.path.abspath(SRC_DIR))
 
 import app as app_module
