@@ -20,17 +20,17 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: module_5
+        working-directory: module_6
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
 
       - name: Run Pylint
-        working-directory: module_5
+        working-directory: module_6
         run: pylint src/ --fail-under=10 --rcfile=.pylintrc
 
   # ===================================
@@ -46,24 +46,24 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install Graphviz
         run: sudo apt-get install -y graphviz
 
       - name: Install dependencies
-        working-directory: module_5
+        working-directory: module_6
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
 
       - name: Generate dependency graph
-        working-directory: module_5
+        working-directory: module_6
         run: pydeps src --noshow -T svg -o dependency.svg --max-bacon=3
 
       - name: Verify dependency.svg exists
-        working-directory: module_5
+        working-directory: module_6
         run: |
           if [ ! -f dependency.svg ]; then
             echo "dependency.svg was not generated!"
@@ -75,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dependency-graph
-          path: module_5/dependency.svg
+          path: module_6/dependency.svg
 
   # ===================================
   # Job 3: Snyk Dependency Scan
@@ -90,10 +90,10 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: module_5
+        working-directory: module_6
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
@@ -102,7 +102,7 @@ jobs:
         run: npm install -g snyk
 
       - name: Run Snyk dependency scan
-        working-directory: module_5
+        working-directory: module_6
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk test --file=requirements.txt --severity-threshold=high || true
@@ -136,7 +136,8 @@ jobs:
       DB_USER:      testuser
       DB_PASSWORD:  testpass
       SECRET_KEY:   ci-test-secret-key
-      DATA_FILE:    src/web_scraper/llm_extended_applicant_data.json
+      DATA_FILE:    src/data/llm_extended_applicant_data.json
+      DATA_DIR:     src/data
 
     steps:
       - name: Checkout repository
@@ -145,10 +146,10 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
 
       - name: Install dependencies
-        working-directory: module_5
+        working-directory: module_6
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
@@ -161,13 +162,16 @@ jobs:
           done
 
       - name: Run full Pytest suite with coverage
-        working-directory: module_5
+        working-directory: module_6
         run: |
-          pytest tests/ --cov=src --cov-report=term-missing \
+          pytest tests/ --cov=src/web/webapp --cov=src/db \
+                 --cov=src/shared --cov=src/web/publisher.py \
+                 --cov=src/worker/consumer.py \
+                 --cov-report=term-missing \
                  --cov-fail-under=100 | tee coverage_summary.txt
 
       - name: Upload coverage summary
         uses: actions/upload-artifact@v4
         with:
           name: coverage-summary
-          path: module_5/coverage_summary.txt
+          path: module_6/coverage_summary.txt
