@@ -62,6 +62,7 @@ def test_recompute_analytics_uses_conn_cursor():
 # handle_scrape_new_data()
 # ==============================
 @pytest.mark.consumer
+@pytest.mark.consumer
 def test_handle_scrape_new_data_calls_scraper(monkeypatch):
     """handle_scrape_new_data calls run_scraper_update."""
     mock_scraper = MagicMock()
@@ -70,15 +71,15 @@ def test_handle_scrape_new_data_calls_scraper(monkeypatch):
     mock_scraper.run_scraper_update = MagicMock()
     mock_scraper.run_llm = MagicMock()
 
-    mock_config = MagicMock()
-    mock_config.load_json = MagicMock(return_value=[])
+    mock_shared = MagicMock()
+    mock_shared.configuration.load_json = MagicMock(return_value=[])
 
-    mock_load_data = MagicMock()
+    mock_db = MagicMock()
 
     with patch.dict("sys.modules", {
         "run_web_scraper": mock_scraper,
-        "configuration": mock_config,
-        "load_data": mock_load_data,
+        "shared": mock_shared,
+        "db": mock_db,
     }):
         consumer.handle_scrape_new_data(MagicMock(), {})
 
@@ -94,15 +95,15 @@ def test_handle_scrape_new_data_calls_llm(monkeypatch):
     mock_scraper.run_scraper_update = MagicMock()
     mock_scraper.run_llm = MagicMock()
 
-    mock_config = MagicMock()
-    mock_config.load_json = MagicMock(return_value=[])
+    mock_shared = MagicMock()
+    mock_shared.configuration.load_json = MagicMock(return_value=[])
 
-    mock_load_data = MagicMock()
+    mock_db = MagicMock()
 
     with patch.dict("sys.modules", {
         "run_web_scraper": mock_scraper,
-        "configuration": mock_config,
-        "load_data": mock_load_data,
+        "shared": mock_shared,
+        "db": mock_db,
     }):
         consumer.handle_scrape_new_data(MagicMock(), {})
 
@@ -118,19 +119,19 @@ def test_handle_scrape_new_data_calls_load_into_db():
     mock_scraper.run_scraper_update = MagicMock()
     mock_scraper.run_llm = MagicMock()
 
-    mock_config = MagicMock()
-    mock_config.load_json = MagicMock(return_value=[{"applicantNumber": 1}])
+    mock_shared = MagicMock()
+    mock_shared.configuration.load_json = MagicMock(return_value=[{"applicantNumber": 1}])
 
-    mock_load_data = MagicMock()
+    mock_db = MagicMock()
 
     with patch.dict("sys.modules", {
         "run_web_scraper": mock_scraper,
-        "configuration": mock_config,
-        "load_data": mock_load_data,
+        "shared": mock_shared,
+        "db": mock_db,
     }):
         consumer.handle_scrape_new_data(MagicMock(), {})
 
-    mock_load_data.load_into_db.assert_called_once()
+    mock_db.load_data.load_into_db.assert_called_once()
 
 
 # ==============

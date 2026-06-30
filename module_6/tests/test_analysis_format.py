@@ -192,7 +192,7 @@ def test_update_analysis_returns_500_on_query_error(client_no_db):
 def test_load_json(tmp_path):
     """load_json reads and returns JSON file contents."""
     import json
-    import configuration
+    from shared import configuration
     data = [{"key": "value"}]
     f = tmp_path / "test.json"
     f.write_text(json.dumps(data))

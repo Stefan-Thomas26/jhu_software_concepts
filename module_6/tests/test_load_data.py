@@ -15,7 +15,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from db import load_data
-import configuration
+from shared import configuration
 from conftest import _parse_db_url, _db_url
 
 

@@ -48,8 +48,8 @@ def handle_scrape_new_data(_conn, _payload):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "etl", "web_scraper"))
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web", "webapp"))
     import run_web_scraper  # pylint: disable=import-outside-toplevel
-    import load_data  # pylint: disable=import-outside-toplevel
-    import configuration  # pylint: disable=import-outside-toplevel
+    from db import load_data  # pylint: disable=import-outside-toplevel
+    from shared import configuration  # pylint: disable=import-outside-toplevel
 
     log.info("Handling scrape_new_data task...")
     run_web_scraper.run_scraper_update()

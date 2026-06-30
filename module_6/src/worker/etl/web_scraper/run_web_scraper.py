@@ -12,7 +12,8 @@ import psycopg
 
 # Add parent directory to path so configuration.py can be found when run as subprocess
 sys.path.insert(0, os.path.dirname(__file__))  # web_scraper/ first
-sys.path.insert(1, os.path.join(os.path.dirname(__file__), ".."))  # src/ second
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), ".."))  # etl/ second
+sys.path.insert(2, os.path.join(os.path.dirname(__file__), "..", "..", ".."))  # /app third
 
 # My Packages
 from llm_hosting.app import enrich_row
@@ -21,7 +22,7 @@ import clean_data
 import save_data
 import confirm_robots
 import load_data
-import configuration
+from shared import configuration
 
 
 # ================

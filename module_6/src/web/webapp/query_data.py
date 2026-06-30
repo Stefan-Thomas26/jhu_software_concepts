@@ -2,7 +2,7 @@
 
 import psycopg
 from psycopg import sql as pg_sql
-import configuration
+from shared import configuration
 
 
 # ========================================

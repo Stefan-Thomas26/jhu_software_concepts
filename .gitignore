@@ -57,6 +57,7 @@ module_6/.coverage
 module_6/.env
 module_6/.pytest_cache/
 module_6/module6.venv
+module_6/shared/__pycache__/
 module_6/src/userConfig.json
 module_6/src/__pycache__/
 module_6/src/db/__pycache__/

@@ -16,6 +16,8 @@ import psycopg
 # =========================================================================
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src/web/webapp")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src/web")))
+SHARED_DIR = os.path.join(os.path.dirname(__file__), "..", "src/shared")
+sys.path.insert(0, os.path.abspath(SHARED_DIR))
 
 import app as app_module
 # Register so test files that do 'import app as app_module' get the same object
