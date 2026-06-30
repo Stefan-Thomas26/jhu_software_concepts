@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class GradApplicant: # pylint: disable=too-many-instance-attributes
+class GradApplicant:
     """Dataclass representing a graduate school applicant and their stats."""
 
     applicant_number: int = None

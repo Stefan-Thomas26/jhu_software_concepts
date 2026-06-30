@@ -177,7 +177,7 @@ def run_scraper_update():
         all_new_applicants.extend(new_on_page)
 
         # Early stop — if nothing on this page was new, we've hit old data
-        if len(new_on_page) == 0:
+        if not new_on_page:
             print(f"Page {page_num} fully seen before — stopping early.")
             break
 

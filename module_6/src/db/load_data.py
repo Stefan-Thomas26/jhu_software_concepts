@@ -26,7 +26,11 @@ def create_new_database(new_database_name):
 
     with default_connection.cursor() as default_cur:
         try:
-            default_cur.execute(f"CREATE DATABASE {new_database_name}")
+            default_cur.execute(
+                pg_sql.SQL("CREATE DATABASE {}").format(
+                    pg_sql.Identifier(new_database_name)
+                )
+            )
             print(f"Created database called {new_database_name}!")  # pragma: no cover
         except psycopg.errors.DuplicateDatabase:
             print(f"A database called {new_database_name} already exists!")

@@ -1,9 +1,11 @@
 """Flask application factory and route definitions for the GradCafe analysis app."""
 import os
+from flask import Flask, jsonify, render_template
+import pika
+import psycopg
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, jsonify, render_template
 
 import query_data
 
@@ -15,7 +17,7 @@ def _reset_state():
     """Reset state — used in tests to get a clean slate."""
 
 
-def create_app(test_config=None):  # pylint: disable=too-many-statements
+def create_app(test_config=None):
     """
     Flask application factory.
 
@@ -57,19 +59,19 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
         """Render the main index page with current query results."""
         try:
             results = app.config["QUERY_FUNC"]()
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (psycopg.Error, OSError, RuntimeError) as e:
             print(f"Could not load query results: {e}")
             results = None
         return render_template("index.html", results=results,
-                       scraper={"running": False, "message": ""},
-                       db_init={"running": False, "message": ""})
+                    scraper={"running": False, "message": ""},
+                    db_init={"running": False, "message": ""})
 
     @app.route("/analysis")
     def analysis():
         """Main analysis page."""
         try:
             results = app.config["QUERY_FUNC"]()
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (psycopg.Error, OSError, RuntimeError) as e:
             print(f"Could not load query results: {e}")
             results = None
         return render_template("index.html", results=results,
@@ -85,7 +87,7 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
         """
         try:
             app.config["PUBLISH_FUNC"]("scrape_new_data")
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (pika.exceptions.AMQPError, OSError, RuntimeError) as e:
             return jsonify({"status": "error",
                             "message": f"Could not queue task: {e}"}), 503
         return jsonify({"status": "queued",
@@ -100,7 +102,7 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
         """
         try:
             app.config["PUBLISH_FUNC"]("recompute_analytics")
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (pika.exceptions.AMQPError, OSError, RuntimeError) as e:
             return jsonify({"status": "error",
                             "message": f"Could not queue task: {e}"}), 503
         return jsonify({"status": "queued",
@@ -121,7 +123,7 @@ def create_app(test_config=None):  # pylint: disable=too-many-statements
         """Re-run all queries and return JSON results."""
         try:
             results = app.config["QUERY_FUNC"]()
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except (psycopg.Error, OSError, RuntimeError) as e:
             return jsonify({"status": "error",
                             "message": f"Query error: {e}"}), 500
 

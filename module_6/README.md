@@ -21,7 +21,7 @@ https://docs.docker.com/get-docker/. The commands below assume:
 - You have at least 4 GB of RAM available for Docker (the worker loads a local
   LLM model at build time)
 
-Tested on: Docker Desktop 4.x, Docker Compose v2.x, Python 3.11.
+Tested on: Docker Desktop 4.x, Docker Compose v2.x, Python 3.14.
 
 ---
 
