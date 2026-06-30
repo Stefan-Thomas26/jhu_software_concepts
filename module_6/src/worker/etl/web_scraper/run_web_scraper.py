@@ -30,17 +30,18 @@ from shared import configuration
 # ================
 BASE_URL = "https://www.thegradcafe.com"
 TOTAL_PAGES = 20
+# General Pathing
 _HERE = os.path.dirname(os.path.abspath(__file__))
+_DATA_DIR = os.environ.get("DATA_DIR", os.path.join(_HERE, "..", "..", "..", "data"))
 # Full scrape outputs (initial load — never overwritten after first run)
-SCRAPE_OUTPUT = os.path.join(_HERE, "applicant_data.json")
-LLM_OUTPUT = os.path.join(_HERE, "llm_extended_applicant_data.json")
+SCRAPE_OUTPUT = os.path.join(_DATA_DIR, "applicant_data.json")
+LLM_OUTPUT = os.path.join(_DATA_DIR, "llm_extended_applicant_data.json")
 # Update scrape outputs (overwritten each update run)
 NEW_SCRAPE_OUTPUT = os.path.join(_HERE, "new_applicant_data.json")
 NEW_LLM_OUTPUT = os.path.join(_HERE, "new_llm_extended_applicant_data.json")
 # Leave at least 1–2 cores free for the OS
 NUM_SCRAPE_WORKERS = 10
 NUM_LLM_WORKERS = max(1, os.cpu_count() - 2)
-
 
 # ===============
 # Parallelization
@@ -77,8 +78,8 @@ def get_known_urls():
         conn.close()
         print(f"Loaded {len(urls)} known URLs from DB.")
         return urls
-    except psycopg.OperationalError as e:
-        print(f"Could not load known URLs (DB may not exist yet): {e}")
+    except (psycopg.OperationalError, psycopg.errors.UndefinedTable) as e:
+        print(f"Could not load known URLs (table may not exist yet): {e}")
         return set()
 
 
@@ -105,8 +106,8 @@ def get_next_applicant_number():
         conn.close()
         print(f"DB has {count} existing rows. Next applicant_number starts at {count + 1}.")
         return count + 1
-    except psycopg.OperationalError as e:
-        print(f"Could not get row count (DB may not exist yet): {e}")
+    except (psycopg.OperationalError, psycopg.errors.UndefinedTable) as e:
+        print(f"Could not load known URLs (table may not exist yet): {e}")
         return 1
 
 

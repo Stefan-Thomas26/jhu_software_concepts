@@ -58,7 +58,7 @@ def handle_scrape_new_data(_conn, _payload):
     run_web_scraper.run_llm(
         input_file=run_web_scraper.NEW_SCRAPE_OUTPUT,
         output_file=new_llm_output,
-        num_workers=2
+        num_workers=6
     )
 
     applicants = configuration.load_json(Path(new_llm_output).resolve())
@@ -68,26 +68,19 @@ def handle_scrape_new_data(_conn, _payload):
 
 def handle_recompute_analytics(conn, _payload):
     """
-    Recompute analytics summaries used by the UI.
+    Create the database and applicants table if they do not already exist.
 
-    Refreshes any materialized views or summary tables within
-    the current transaction.
+    Ensures the database schema is initialized so the UI has something
+    to query against.
     """
     log.info("Handling recompute_analytics task...")
 
-    with conn.cursor() as cur:
-        cur.execute("""
-            DO $$
-            BEGIN
-                IF EXISTS (
-                    SELECT 1 FROM pg_matviews WHERE matviewname = 'applicant_summary'
-                ) THEN
-                    REFRESH MATERIALIZED VIEW applicant_summary;
-                END IF;
-            END $$;
-        """)
+    from db import load_data  # pylint: disable=import-outside-toplevel
 
-    log.info("recompute_analytics complete.")
+    with conn.cursor() as cur:
+        cur.execute(load_data._create_table_sql())  # pylint: disable=protected-access
+
+    log.info("recompute_analytics complete — database schema ensured.")
 
 
 # ========

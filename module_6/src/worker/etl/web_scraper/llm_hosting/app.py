@@ -26,7 +26,7 @@ MODEL_FILE = os.getenv(
     "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
 )
 
-N_THREADS = int(4)
+N_THREADS = int(2)
 N_CTX = int(os.getenv("N_CTX", "2048"))
 N_GPU_LAYERS = int(os.getenv("N_GPU_LAYERS", "0"))  # 0 → CPU-only
 
@@ -243,7 +243,7 @@ def _call_llm(university_text: str, program_text: str) -> Dict[str, str]:
     out = llm.create_chat_completion(
         messages=messages,
         temperature=0.0,
-        max_tokens=128,
+        max_tokens=60,
         top_p=1.0,
     )
 

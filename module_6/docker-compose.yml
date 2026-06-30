@@ -33,6 +33,9 @@ services:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       RABBITMQ_URL: ${RABBITMQ_URL}
       FLASK_SECRET: ${FLASK_SECRET}
+      DATA_DIR: /data
+    volumes:
+      - ./src/data:/data:ro
     ports:
       - "8080:8080"
     depends_on:
@@ -49,6 +52,10 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       RABBITMQ_URL: ${RABBITMQ_URL}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DATA_DIR: /data
     volumes:
       - ./src/data:/data:ro
     depends_on:
