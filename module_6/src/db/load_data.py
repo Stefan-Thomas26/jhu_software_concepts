@@ -150,11 +150,11 @@ def load_data_into_database(filename=None):
     create_new_database(DATABASE_NAME)
 
     if filename is None:
-            data_dir = os.environ.get("DATA_DIR", "src/data")
-            filename = os.environ.get(
-                "DATA_FILE",
-                os.path.join(data_dir, "llm_extended_applicant_data.json")
-            )
+        data_dir = os.environ.get("DATA_DIR", "src/data")
+        filename = os.environ.get(
+            "DATA_FILE",
+            os.path.join(data_dir, "llm_extended_applicant_data.json")
+        )
 
     applicant_data_file_path = Path(filename)
     print(applicant_data_file_path.resolve())  # pragma: no cover

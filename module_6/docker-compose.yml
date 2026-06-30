@@ -34,6 +34,9 @@ services:
       RABBITMQ_URL: ${RABBITMQ_URL}
       FLASK_SECRET: ${FLASK_SECRET}
       DATA_DIR: /data
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
     volumes:
       - ./src/data:/data:ro
     ports:

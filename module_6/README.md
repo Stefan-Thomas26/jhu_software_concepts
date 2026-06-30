@@ -1,346 +1,238 @@
-# Grad Café Analytics — Module 5
+# Module 6 — GradCafe Microservice Application
 
-A Flask + PostgreSQL web application that scrapes graduate school application
-data from [The Grad Café](https://www.thegradcafe.com), stores it in
-PostgreSQL, and presents SQL-driven analysis via a browser UI.
+A containerized, microservice version of the GradCafe Data Analysis app. The
+Flask web tier, PostgreSQL database, RabbitMQ message broker, and a Python
+background worker run as four independent services orchestrated by Docker
+Compose. Long-running and data-modifying work (scraping new applicants,
+recomputing analytics) is offloaded from the web tier to the worker via
+RabbitMQ, so the UI stays fast and responsive regardless of how long a task
+takes to complete.
 
-This module adds security hardening: SQL injection defenses, least-privilege
-database configuration, dependency analysis, Snyk scanning, and CI enforcement.
+---
 
-📖 **[Documentation](https://gradcafe-analytics-stefan.readthedocs.io)**
+## Docker Installation Assumptions
+
+This project requires **Docker Desktop** (macOS / Windows) or **Docker Engine
++ Compose plugin** (Linux). Installation instructions are at
+https://docs.docker.com/get-docker/. The commands below assume:
+
+- `docker` and `docker compose` (v2) are on your PATH
+- Docker Desktop is running (or the Docker daemon is active on Linux)
+- You have at least 4 GB of RAM available for Docker (the worker loads a local
+  LLM model at build time)
+
+Tested on: Docker Desktop 4.x, Docker Compose v2.x, Python 3.11.
+
+---
+
+## Architecture
+
+```
+Browser → Flask (web:8080) → RabbitMQ (tasks_q) → Worker → PostgreSQL (db:5432)
+```
+
+| Service      | Image                        | Port(s)           | Role                                      |
+|--------------|------------------------------|-------------------|-------------------------------------------|
+| `web`        | `stefanthomas26/module_6:web-v1`    | `8080` (HTTP)     | Flask UI + RabbitMQ publisher             |
+| `worker`     | `stefanthomas26/module_6:worker-v1` | —                 | RabbitMQ consumer + scraper + DB writer   |
+| `db`         | `postgres:16`                | `5432` (internal) | PostgreSQL — applicant data + watermarks  |
+| `rabbitmq`   | `rabbitmq:3.13-management`   | `15672` (mgmt UI) | AMQP message broker                       |
+
+### How the services connect
+
+- `web` publishes a JSON task message to the `tasks` exchange (routing key
+  `tasks`) whenever a button is clicked. It returns `202 Accepted` immediately.
+- `rabbitmq` routes the message to the durable `tasks_q` queue.
+- `worker` consumes one message at a time (`prefetch_count=1`), runs the
+  handler inside a database transaction, commits, and acks. On any error it
+  rolls back and nacks without requeue.
+- `db` stores applicant records (`applicants` table) and an
+  `ingestion_watermarks` table that ensures incremental scraping is idempotent.
+
+### Task buttons
+
+| Button            | Published task kind    | Worker handler               | What it does                                              |
+|--------------------|------------------------|-------------------------------|-----------------------------------------------------------|
+| **Pull Data**      | `scrape_new_data`      | `handle_scrape_new_data`      | Scrapes new GradCafe entries, runs LLM enrichment, inserts idempotently, advances watermark |
+| **Create Database**| `recompute_analytics`  | `handle_recompute_analytics`  | Ensures the DB schema (`applicants` table) exists         |
+| **Update Analysis**| (direct query, no queue) | —                           | Re-runs all SQL queries and refreshes the UI charts       |
+
+---
+
+## Quickstart
+
+### 1. Prerequisites
+
+- Docker Desktop installed and running
+- Git
+
+### 2. Clone and configure
+
+```bash
+git clone <your-repo-url>
+cd module_6
+cp .env.example .env
+# Edit .env and fill in DB_USER, DB_PASSWORD, and DB_NAME
+```
+
+### 3. Build and run
+
+```bash
+docker compose up --build
+```
+
+The first build takes several minutes — the worker image compiles
+`llama_cpp_python` from source and pre-downloads the TinyLlama GGUF model
+(~700 MB). Subsequent builds use Docker's layer cache and are fast.
+
+### 4. Access the services
+
+| Service              | URL                          | Credentials          |
+|-----------------------|------------------------------|----------------------|
+| Flask app             | http://localhost:8080         | —                    |
+| RabbitMQ management   | http://localhost:15672        | `guest` / `guest`    |
+
+### 5. Load data and run analysis
+
+1. Click **Create Database** — initializes the schema (returns immediately, worker processes asynchronously)
+2. Click **Pull Data** — enqueues a live GradCafe scrape (runs in background via worker; LLM enrichment can take several minutes)
+3. Click **Update Analysis** — re-runs all SQL queries and updates the dashboard
+
+Alternatively, to instantly seed the database with pre-existing data:
+
+```bash
+docker compose exec web python -c "
+import sys; sys.path.insert(0, 'db'); sys.path.insert(0, 'shared')
+from db import load_data
+load_data.load_data_into_database('/data/llm_extended_applicant_data.json')
+"
+```
+
+### 6. Stop the stack
+
+```bash
+docker compose down        # stops containers, preserves DB volume
+docker compose down -v     # stops containers AND wipes DB (full reset)
+```
+
+---
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in your values. Docker Compose
+automatically wires `DATABASE_URL`, `DB_HOST`, and `DATA_DIR` to point at
+internal service names — you do not need to set Docker-specific values manually.
+
+| Variable        | Required for         | Description                                                   |
+|-----------------|----------------------|---------------------------------------------------------------|
+| `DB_USER`       | Docker + local tests | PostgreSQL username                                           |
+| `DB_PASSWORD`   | Docker + local tests | PostgreSQL password                                           |
+| `DB_NAME`       | Docker + local tests | PostgreSQL database name (e.g. `applicantdata`)               |
+| `DB_HOST`       | Local tests only     | Postgres host outside Docker (e.g. `localhost`)               |
+| `DB_PORT`       | Local tests only     | Postgres port outside Docker (e.g. `5432`)                    |
+| `DATABASE_URL`  | Local tests only     | Full psycopg connection string for pytest                     |
+| `RABBITMQ_URL`  | Docker + local       | AMQP URL (e.g. `amqp://guest:guest@rabbitmq:5672/`)           |
+| `FLASK_SECRET`  | Docker               | Flask session secret key                                      |
+| `FLASK_ENV`     | Docker               | `development` or `production`                                 |
+| `DATA_DIR`      | Docker               | Path to data volume inside container (set to `/data` in Compose) |
+
+---
+
+## Running Tests Locally
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run tests with coverage
+pytest tests/ --cov=src --cov-report=term-missing
+```
+
+100% test coverage is enforced (`--cov-fail-under=100`). Database-backed tests
+require `DATABASE_URL` to be set in `.env`; they skip automatically if it is
+not present.
+
+## Linting
+
+```bash
+pylint src/
+```
+
+Target score: 10.00/10.
 
 ---
 
 ## Project Structure
 
 ```
-module_5/
-├── src/                                        # Application source code
-│   ├── app.py                                  # Flask app factory + routes
-│   ├── load_data.py                            # ETL: create DB, insert applicants
-│   ├── query_data.py                           # SQL queries (q1–q11)
-│   ├── configuration.py                        # Config / credential loading
-│   └── web_scraper/                            # Web scraper functionality
-|       ├── llm_hosting                         # Folder containing local LLM
-│       ├── run_web_scraper.py                  # Top-level scraper entry point
-│       ├── scrape_data.py                      # HTTP scraping logic
-│       ├── clean_data.py                       # HTML parsing + data cleaning
-│       ├── grad_applicant.py                   # GradApplicant dataclass
-│       ├── save_data.py                        # Save applicants to JSON
-│       ├── load_data.py                        # Load JSON files
-│       └── confirm_robots.py                   # robots.txt compliance check
-│
-├── templates/
-│   └── index.html                              # Jinja2 template
-│
-├── static/
-│   └── style.css                               # Application CSS
-│
-├── tests/
-│   ├── conftest.py                             # Fixtures & DB setup
-│   ├── test_flask_page.py                      # [web] Page rendering tests
-│   ├── test_buttons.py                         # [buttons] Endpoint behavior tests
-│   ├── test_analysis_format.py                 # [analysis] Labels & formatting tests
-│   ├── test_db_insert.py                       # [db] Schema & insert tests
-│   ├── test_load_data.py                       # [db] load_data_into_database() tests
-│   └── test_integration_end_to_end.py          # [integration] E2E flow tests
-│
-├── docs/                                       # Sphinx documentation
-│
-├── dependency.svg                              # pydeps dependency graph
-├── snyk-analysis.png                           # Snyk scan screenshot
-├── setup.py                                    # Package installation config
-├── .env.example                                # Template for environment setup
-├── pytest.ini                                  # Pytest configuration
-├── requirements.txt                            # Python dependencies
-├── coverage_summary.txt                        # Pytest coverage output
-├── module_5_report.pdf                         # Assignment report
-└── README.md                                   # This file
+module_6/
+    docker-compose.yml       # defines all 4 services, health checks, named volume
+    setup.py
+    README.md
+    .env.example             # template — copy to .env and fill in values
+    pytest.ini
+    .coveragerc
+    docs/
+    tests/
+        conftest.py
+        test_flask_page.py
+        test_buttons.py
+        test_analysis_format.py
+        test_db_insert.py
+        test_load_data.py
+        test_integration_end_to_end.py
+        test_publisher.py
+        test_consumer.py
+    src/
+        web/
+            Dockerfile           # non-root, python:3.11-slim
+            requirements.txt
+            run.py               # Flask entrypoint — binds 0.0.0.0:8080
+            publisher.py         # RabbitMQ publisher (_open_channel, publish_task)
+            webapp/
+                app.py           # Flask application factory + routes
+                query_data.py    # SQL queries against applicants table
+        worker/
+            Dockerfile           # non-root, build-essential + LLM model pre-download
+            requirements.txt
+            consumer.py          # RabbitMQ consumer (acks, prefetch=1, task map)
+            etl/
+                web_scraper/     # GradCafe scraper + LLM enrichment pipeline
+        db/
+            load_data.py         # JSON → PostgreSQL loader, watermark table
+        shared/
+            configuration.py     # shared env var reader + JSON loader
+        data/
+            applicant_data.json  # seed data (LLM-cleaned applicant records)
 ```
 
 ---
 
-## Prerequisites
+## Docker Hub Registry
 
-- Python 3.12+
-- PostgreSQL 15+
-- Graphviz (`dot` command available in PATH)
-- Node.js (for Snyk CLI)
-
----
-
-## Fresh Install
-
-### Using pip
+Public repository: https://hub.docker.com/r/stefanthomas26/module_6
 
 ```bash
-git clone git@github.com:Stefan-Thomas26/jhu_software_concepts.git
-cd jhu_software_concepts/module_5
-
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate.bat
-
-pip install --upgrade pip
-pip install -r requirements.txt
-pip install -e .
-
-cp .env.example .env
-# Fill in your credentials in .env
-
-python src/app.py
+# Pull images
+docker pull stefanthomas26/module_6:web-v1
+docker pull stefanthomas26/module_6:worker-v1
 ```
 
-### Using uv
+To run the web image standalone (for testing only — requires a running DB and
+RabbitMQ):
 
 ```bash
-git clone git@github.com:Stefan-Thomas26/jhu_software_concepts.git
-cd jhu_software_concepts/module_5
-
-pip install uv
-uv venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate.bat
-
-uv pip sync requirements.txt
-pip install -e .
-
-cp .env.example .env
-# Fill in your credentials in .env
-
-python src/app.py
-```
-
-Open `http://localhost:8080` in your browser.
-
----
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and fill in your values:
-
-```dotenv
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=applicantdata
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-DATA_FILE=src/web_scraper/llm_extended_applicant_data.json
-SECRET_KEY=your_secret_key
-DATABASE_URL=postgresql://your_db_user:your_db_password@localhost:5432/applicantdata
-```
-
-| Variable | Description |
-|----------|-------------|
-| `DB_HOST` | PostgreSQL host (usually `localhost`) |
-| `DB_PORT` | PostgreSQL port (usually `5432`) |
-| `DB_NAME` | Database name (`applicantdata`) |
-| `DB_USER` | Least-privilege DB user (`gradcafe_reader`) |
-| `DB_PASSWORD` | DB user password |
-| `DATA_FILE` | Path to the LLM-enriched applicant JSON file |
-| `SECRET_KEY` | Flask session signing key |
-| `DATABASE_URL` | Full connection string (used by tests) |
-
-> ⚠️ Never commit `.env` — it is listed in `.gitignore`
-
----
-
-## Using the App
-
-The browser UI has three buttons:
-
-| Button | What it does |
-|--------|-------------|
-| **Create Database** | Creates the PostgreSQL database and loads the archive JSON file |
-| **Pull Data** | Scrapes new entries from Grad Café and adds them to the database |
-| **Update Analysis** | Refreshes all analysis results from the database |
-
-All three buttons are non-blocking — they run in background threads and show a
-status bar while running. If a task is already running, subsequent requests
-return a 409 Busy response.
-
----
-
-## Linting
-
-Run Pylint on all source files:
-
-```bash
-cd module_5/
-pylint src/
-```
-
-Expected output:
-
-```
-Your code has been rated at 10.00/10
-```
-
-All Python files under `module_5/src/` achieve a score of 10.00/10 with no
-warnings or errors.
-
----
-
-## SQL Injection Defenses
-
-All SQL queries use `psycopg` safe composition:
-
-- **No f-strings or string concatenation** in SQL construction
-- **`pg_sql.SQL()`** wraps every query statement
-- **`pg_sql.Identifier()`** safely quotes table and column names
-- **`%s` parameter binding** passes all user-supplied values
-- **`LIMIT` enforced on every query**, clamped to 1–100 via `clamp_limit()`
-
-Example pattern:
-
-```python
-stmt = pg_sql.SQL("SELECT {col} FROM {tbl} LIMIT %s").format(
-    col=pg_sql.Identifier(column_name),
-    tbl=pg_sql.Identifier(table_name)
-)
-cursor.execute(stmt, [clamp_limit(limit)])
+docker run -p 8080:8080 --env-file .env stefanthomas26/module_6:web-v1
 ```
 
 ---
 
-## Database Hardening
+## Notes
 
-Credentials are loaded exclusively from environment variables — no secrets
-appear in source code.
-
-A least-privilege PostgreSQL user `gradcafe_reader` was created with
-SELECT-only access on the `applicants` table:
-
-```sql
-CREATE USER gradcafe_reader WITH PASSWORD '...';
-GRANT CONNECT ON DATABASE applicantdata TO gradcafe_reader;
-GRANT USAGE ON SCHEMA public TO gradcafe_reader;
-GRANT SELECT ON TABLE applicants TO gradcafe_reader;
-```
-
-This user cannot INSERT, UPDATE, DELETE, DROP, or ALTER any data or schema.
-
----
-
-## Dependency Graph
-
-Generated using pydeps and Graphviz:
-
-```bash
-pydeps src --noshow -T svg -o dependency.svg --max-bacon=3
-```
-
-The output is saved as `dependency.svg` in `module_5/`.
-
----
-
-## Running Tests
-
-### 1. Set up the test database
-
-```bash
-cp .env.example .env
-# Fill in your PostgreSQL credentials
-```
-
-### 2. Run the full suite
-
-```bash
-cd module_5/
-pytest tests/
-```
-
-### 3. Run individual markers
-
-```bash
-pytest -m web          # Page rendering tests
-pytest -m buttons      # Endpoint behavior tests
-pytest -m analysis     # Formatting tests
-pytest -m db           # Database tests
-pytest -m integration  # End-to-end tests
-```
-
-### 4. Run with coverage report
-
-```bash
-pytest tests/ --cov=src --cov-report=term-missing
-```
-
----
-
-## Snyk Dependency Scan
-
-```bash
-# Install Snyk CLI
-npm install -g snyk
-snyk auth
-
-# Run dependency scan
-snyk test
-
-# Run SAST scan (extra credit)
-snyk code test
-```
-
-Results are saved as `snyk-analysis.png`.
-
----
-
-## CI / GitHub Actions
-
-The workflow at `.github/workflows/ci.yml` runs on every push and PR:
-
-1. **Pylint** — enforces `--fail-under=10`
-2. **pydeps** — generates `dependency.svg` and fails if missing
-3. **Snyk** — runs `snyk test` for dependency scanning
-4. **Pytest** — runs full test suite with 100% coverage enforcement
-
-[![CI](https://github.com/Stefan-Thomas26/jhu_software_concepts/actions/workflows/ci.yml/badge.svg)](https://github.com/Stefan-Thomas26/jhu_software_concepts/actions/workflows/ci.yml)
-
----
-
-## Packaging
-
-Install as an editable package:
-
-```bash
-pip install -e .
-```
-
-This ensures imports behave consistently across local runs, tests, and CI,
-eliminating path-related "it works on my machine" issues.
-
----
-
-## Sphinx Documentation
-
-Build locally:
-
-```bash
-cd module_5/docs
-sphinx-build -b html source build/html
-start build/html/index.html
-```
-
-Published at: **[Read the Docs](https://gradcafe-analytics-stefan.readthedocs.io)**
-
----
-
-## Key Design Decisions
-
-**Dependency Injection** — `create_app(test_config)` accepts injectable
-functions for the scraper, loader, and query layer. Tests pass fakes;
-production uses real functions.
-
-**Busy-State Gating** — Threading locks prevent concurrent DB mutations.
-All endpoints return 409 when a background task is running.
-
-**Idempotency** — All inserts use `ON CONFLICT (p_id) DO NOTHING`.
-Pulling the same data twice is always safe.
-
-**100% Test Coverage** — Enforced via `pytest-cov` with
-`--cov-fail-under=100` in `pytest.ini`.
-
-**Least-Privilege DB** — App connects as `gradcafe_reader` with SELECT-only
-permissions. Even if credentials are compromised, no data can be modified.
-
-**Safe SQL Composition** — All queries use `psycopg.sql` composition.
-User input never touches SQL text directly.
+- Both containers run as a non-root user (`USER 1000`) for security.
+- The worker pre-downloads the TinyLlama GGUF model at build time so runtime
+  LLM inference does not require a network download.
+- `Pull Data` scraping is incremental and idempotent — the `ingestion_watermarks`
+  table tracks the last-seen record so duplicate rows are never inserted.
+- All SQL uses parameterized queries (`%s` placeholders via psycopg) —
+  no string interpolation in SQL.

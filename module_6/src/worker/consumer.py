@@ -132,6 +132,7 @@ def on_message(ch, method, _properties, body):
 # ===========
 def main():  # pragma: no cover
     """Connect to RabbitMQ and start consuming tasks."""
+    # pylint: disable=duplicate-code
     url = os.environ["RABBITMQ_URL"]
     params = pika.URLParameters(url)
     conn = pika.BlockingConnection(params)
