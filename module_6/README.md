@@ -208,24 +208,56 @@ module_6/
 
 ---
 
-## Docker Hub Registry
+## Docker Hub — Tagging and Pushing Images
+
+Images are tagged and pushed to Docker Hub using the following commands:
+
+```bash
+# Tag both images
+docker tag module_6-web:latest stefanthomas26/module_6:web-v1
+docker tag module_6-worker:latest stefanthomas26/module_6:worker-v1
+
+# Log in to Docker Hub
+docker login
+
+# Push both images
+docker push stefanthomas26/module_6:web-v1
+docker push stefanthomas26/module_6:worker-v1
+```
 
 Public repository: https://hub.docker.com/r/stefanthomas26/module_6
+
+Pull and run instructions:
 
 ```bash
 # Pull images
 docker pull stefanthomas26/module_6:web-v1
 docker pull stefanthomas26/module_6:worker-v1
+
+# Run the full stack (recommended — requires docker-compose.yml and .env)
+docker compose up
+
+# Run web image standalone (requires running db and RabbitMQ separately)
+docker run -p 8080:8080 \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/applicantdata \
+  -e RABBITMQ_URL=amqp://guest:guest@host:5672/ \
+  -e DB_USER=user \
+  -e DB_PASSWORD=pass \
+  -e DB_HOST=host \
+  -e FLASK_SECRET=your_secret \
+  stefanthomas26/module_6:web-v1
+
+# Run worker image standalone (requires running db and RabbitMQ separately)
+docker run \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/applicantdata \
+  -e RABBITMQ_URL=amqp://guest:guest@host:5672/ \
+  -e DB_USER=user \
+  -e DB_PASSWORD=pass \
+  -e DB_HOST=host \
+  stefanthomas26/module_6:worker-v1
 ```
 
-To run the web image standalone (for testing only — requires a running DB and
-RabbitMQ):
-
-```bash
-docker run -p 8080:8080 --env-file .env stefanthomas26/module_6:web-v1
-```
-
----
+The recommended way to run is always `docker compose up` from the project root with a configured `.env` file, as the standalone `docker run` commands require a separately running PostgreSQL and RabbitMQ instance.
 
 ## Notes
 

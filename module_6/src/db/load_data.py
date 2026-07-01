@@ -62,6 +62,17 @@ def _create_table_sql():
     """
     return create_table_sql
 
+def create_watermark_table(conn):
+    """Create the ingestion_watermarks table if it does not already exist."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ingestion_watermarks (
+                source      TEXT PRIMARY KEY,
+                last_seen   TEXT,
+                updated_at  TIMESTAMPTZ DEFAULT now()
+            );
+        """)
+    conn.commit()
 
 def _insert_sql():
     """Return the SQL string for inserting a row into the applicants table."""
@@ -107,6 +118,9 @@ def load_into_db(applicants, database_name):
     create_table_sql = _create_table_sql()
     cursor.execute(create_table_sql)
     conn.commit()
+
+    # Ensure watermark table exists
+    create_watermark_table(conn)
 
     inserted = 0
     skipped = 0
